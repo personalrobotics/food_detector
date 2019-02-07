@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>food_detector</name>
+  <version>0.1.0</version>
+  <description>Food Pose Estimator with CNN based approaches</description>
+  <license>UNRELEASED</license>
+
+  <maintainer email="ekgordon@cs.uw.edu">Gilwoo Lee</maintainer>
+  <author email="yskim041@gmail.com">Youngsun Kim</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>python</depend>
+  
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>deep_pose_estimators</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>pytorch</exec_depend>
+
+</package>
+ 
