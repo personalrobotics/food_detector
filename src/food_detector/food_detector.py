@@ -12,6 +12,7 @@ import cv2
 import pcl
 import rospy
 import rospkg
+from tf.transformations import quaternion_matrix
 
 import torch
 import torchvision.transforms as transforms
@@ -23,15 +24,12 @@ from sensor_msgs.msg import CompressedImage, Image, CameraInfo
 import sensor_msgs.point_cloud2 as pc2
 from cv_bridge import CvBridge
 
-from utils import math_utils
-from utils import pcl_utils
-
 rospack = rospkg.RosPack()
-pkg_base = rospack.get_path('deep_pose_estimators')
-
+pkg_base = rospack.get_path('food_detector')
 external_path = os.path.join(
-    pkg_base, 'src/deep_pose_estimators/external')
+    pkg_base, 'external')
 sys.path.append(external_path)
+
 from pytorch_retinanet.model.retinanet import RetinaNet
 from pytorch_retinanet.retinanet_utils.encoder import DataEncoder
 
@@ -40,8 +38,14 @@ from bite_selection_package.spnet_config import config as spnet_config
 
 from laura_model1.run_test import Model1
 
+from deep_pose_estimators.pose_estimators import PoseEstimator
+from deep_pose_estimators.utils import math_utils
+from deep_pose_estimators.utils import pcl_utils
+from deep_pose_estimators.detected_item import DetectedItem
 
-# An application for the food manipulation project
+
+
+# A pose estimator for detecting object and skewering pose
 class FoodDetection(PoseEstimator):
     def __init__(self, title='FoodDetection',
                  use_spnet=True, use_cuda=True, use_model1=False):
@@ -98,6 +102,19 @@ class FoodDetection(PoseEstimator):
         self.selector_food_names = [
             "carrot", "melon", "apple", "banana", "strawberry"]
         self.selector_index = 0
+
+    def create_detected_item(self, rvec, tvec, t_class_name, t_class, box_key, sp_idx):
+        pose = quaternion_matrix(rvec)
+        pose[:3, 3] = tvec
+
+        # TODO: Youngsun to fill in
+        return DetectedItem(
+            frame_id = self.frame_id,
+            marker_namespace=t_class_name,
+            marker_id=0,
+            db_key=box_key,
+            pose=pose,
+            detected_time=rospy.Time.now())
 
     def init_ros_subscribers(self):
         # subscribe image topic
@@ -749,7 +766,7 @@ class FoodDetection(PoseEstimator):
                     rst_vecs = [rvec, tvec,
                                 t_class_name, t_class,
                                 box_key, sp_idx]
-                    detections.append(rst_vecs)
+                    detections.append(create_detected_item(rst_vecs))
 
         # visualize detections
         fnt = ImageFont.truetype('Pillow/Tests/fonts/DejaVuSans.ttf', 12)
@@ -785,117 +802,3 @@ class FoodDetection(PoseEstimator):
 
         return detections
 
-
-def print_usage(err_msg):
-    print(err_msg)
-    print('Usage:')
-    print('\t./detection_w_projection.py <config_filename (e.g. herb)>\n')
-
-
-def run_detection():
-    global config
-    config = load_configs()
-    if config is None:
-        return
-
-    if config.use_cuda == 'true':
-        os.environ['CUDA_VISIBLE_DEVICES'] = config.gpus
-
-    rospy.init_node(config.node_title)
-    rcnn_projection = FoodDetection(
-        title=config.node_title,
-        use_cuda=(config.use_cuda == 'true'),
-        use_spnet=False,
-        use_model1=False)
-
-    try:
-        pub_pose = rospy.Publisher(
-            '{}/marker_array'.format(config.node_title),
-            MarkerArray,
-            queue_size=1)
-
-        rate = rospy.Rate(config.frequency)
-
-        while not rospy.is_shutdown():
-            update_timestamp_str = 'update: {}'.format(rospy.get_time())
-            rst = rcnn_projection.detect_objects()
-
-            poses = list()
-            pose = Marker()
-            pose.header.frame_id = config.camera_tf
-            pose.header.stamp = rospy.Time.now()
-            pose.id = 0
-            pose.ns = 'food_item'
-            pose.type = Marker.CUBE
-            pose.action = Marker.DELETEALL
-            poses.append(pose)
-
-            item_dict = dict()
-            if rst is not None:
-                for item in rst:
-                    if item[2] in item_dict:
-                        item_dict[item[2]] += 1
-                    else:
-                        item_dict[item[2]] = 1
-
-                    obj_info = dict()
-                    obj_info['uid'] = '{}_{}'.format(
-                        item[2], item_dict[item[2]])
-
-                    pose = Marker()
-                    pose.header.frame_id = conf.camera_tf
-                    pose.header.stamp = rospy.Time.now()
-                    pose.id = item[3] * 1000 + item[5]
-                    pose.ns = 'food_item'
-                    pose.text = json.dumps(obj_info)
-                    pose.type = Marker.CYLINDER
-                    pose.pose.position.x = item[1][0]
-                    pose.pose.position.y = item[1][1]
-                    pose.pose.position.z = item[1][2]
-                    pose.pose.orientation.x = item[0][0]
-                    pose.pose.orientation.y = item[0][1]
-                    pose.pose.orientation.z = item[0][2]
-                    pose.pose.orientation.w = item[0][3]
-                    pose.scale.x = 0.01
-                    pose.scale.y = 0.01
-                    pose.scale.z = 0.04
-                    pose.color.a = 0.5
-                    pose.color.r = 1.0
-                    pose.color.g = 0.5
-                    pose.color.b = 0.1
-                    pose.lifetime = rospy.Duration(0)
-                    poses.append(pose)
-
-            pub_pose.publish(poses)
-            rate.sleep()
-
-    except rospy.ROSInterruptException:
-        pass
-
-
-if __name__ == '__main__':
-    args = sys.argv
-
-    config_filename = None
-    if len(args) == 2:
-        config_filename = args[1]
-    else:
-        ros_param_name = '/pose_estimator/config_filename'
-        if rospy.has_param(ros_param_name):
-            config_filename = rospy.get_param(ros_param_name)
-
-    if config_filename is None:
-        print_usage('Invalid arguments')
-        exit(0)
-
-    if config_filename.startswith('ada'):
-        from robot_conf import ada as conf
-    elif config_filename.startswith('herb'):
-        from robot_conf import herb as conf
-    else:
-        print_usage('Invalid arguments')
-        exit(0)
-
-    os.environ['CUDA_VISIBLE_DEVICES'] = conf.gpus
-
-    run_detection()

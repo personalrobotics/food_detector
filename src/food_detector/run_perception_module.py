@@ -1,28 +1,36 @@
 import sys
 import rospy
 import os
-import ada_conf as conf
+
+import argparse
 from deep_pose_estimators import run_detection
+from deep_pose_estimators.perception_module import PerceptionModule
+from food_detector import FoodDetector
 
-# TODO: may need to just remove it to reduce confusion.
-# It is up to the user how to set this up (whether to read it from config file etc.)
 if __name__ == '__main__':
-    args = sys.argv
+    parser = argparse.ArgumentParser("Run perception module for ada feeding projects")
+    parser.add_argument("--demo-type", choices=['spnet-skewer', 'qvalue-skewer'])
+    args = parser.parse_args()
 
-    config_filename = None
-    if len(args) == 2:
-        config_filename = args[1]
+
+    rospy.init_node("food_detection")
+
+
+    if args.demo_type == "spnet_skewer":
+        import ada_feeding_demo_config as conf
+        # TODO: shall we allow other options?
+        pose_estimator = FoodDetector(use_spnet=True, use_cuda=True, use_model1=False)
     else:
-        ros_param_name = '/pose_estimator/config_filename'
-        if rospy.has_param(ros_param_name):
-            config_filename = rospy.get_param(ros_param_name)
-
-    if config_filename is None:
-        raise ValueError("Invalid arguments")
+        raise NotImplementedError
 
     os.environ['CUDA_VISIBLE_DEVICES'] = conf.gpus
+    perception_module = PerceptionModule(
+        pose_estimator=pose_estimator,
+        marker_manager=MarkerManager(),
+        detection_frame_marker_topic=None,
+        detection_frame=conf.camera_tf,
+        destination_frame="map")
 
     # TODO: setup the perception_module
-    perception_module = None
 
     run_detection(conf.node_title, conf.frequency, perception_module)
