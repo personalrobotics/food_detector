@@ -62,6 +62,7 @@ class FoodDetection(PoseEstimator):
 
         self.agg_pc_data = list()
         self.camera_to_table = conf.camera_to_table
+        self.frame = conf.camera_tf
 
         self.use_spnet = use_spnet
         self.spnet = None
@@ -109,9 +110,9 @@ class FoodDetection(PoseEstimator):
 
         # TODO: Youngsun to fill in
         return DetectedItem(
-            frame_id = self.frame_id,
+            frame_id = self.frame,
             marker_namespace=t_class_name,
-            marker_id=0,
+            marker_id=-1, # It is the marker manager's job to assign an id
             db_key=box_key,
             pose=pose,
             detected_time=rospy.Time.now())
