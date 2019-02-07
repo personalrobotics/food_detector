@@ -24,14 +24,14 @@ if __name__ == '__main__':
 
     os.environ['CUDA_VISIBLE_DEVICES'] = conf.gpus
 
-    marker_manager = MarkerManager(marker_type=Marker.CYLINDER,
-        scale=[0.01, 0.01, 0.04],
+    marker_manager = MarkerManager(marker_type=Marker.CUBE,
+        scale=[0.01, 0.01, 0.01],
         color=[0.5, 1.0, 0.5, 0.1],
         count_items=True)
 
     perception_module = PerceptionModule(
         pose_estimator=pose_estimator,
-        marker_manager=,
+        marker_manager=marker_manager,
         detection_frame_marker_topic=None,
         detection_frame=conf.camera_tf,
         destination_frame="map",
