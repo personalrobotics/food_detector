@@ -62,8 +62,8 @@ class ActionDetector(PoseEstimator, CameraSubscriberImagePublisher):
         # TODO: wait for transform
         # Get the transform from destination to detection frame
         camera_transform = get_transform_matrix(self.listener,
-            self.detection_frame,
             self.destination_frame,
+            self.detection_frame,
             self.timeout)
 
         for item, uv in detected_items:
