@@ -67,7 +67,6 @@ class ActionDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         # @Youngsun Get all bounding boxes and food classes
         detected_items = [] # List of (DetectedItem, image (u,v) of center of each item)
 
-        # TODO: wait for transform
         # Get the transform from destination to detection frame
         camera_transform = get_transform_matrix(self.listener,
             self.destination_frame,
