@@ -7,7 +7,7 @@ class WallClass(Enum):
 	ON_TOP_OF_LEAF = 3
 
 
-# Pseudo-code for API
+# Pseudocode for API
 class WallDetector(object):
 
 	# API

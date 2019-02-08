@@ -8,32 +8,40 @@ from tf import TransformListener
 from deep_pose_estimators.pose_estimators import PoseEstimator
 from deep_pose_estimators.detected_item import DetectedItem
 from deep_pose_estimators.utils.ros_utils import get_transform_matrix
+from deep_pose_estimators.utils import CameraSubscriber
 
-from food_detector import CameraSubscriberImagePublisher, WallDetector, WallClass
+from food_detector import ImagePublisher, WallDetector, WallClass
 from food_detector.util import load_retinanet, load_label_map
 
-class ActionDetector(PoseEstimator, CameraSubscriberImagePublisher):
+class ActionDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
     """
     Action detector returns particular action as the class of each object.
     """
 
-    def __init__(self, score_file, action_types, retinanet_checkpoint,
-            image_topic, image_msg_type, depth_image_topic,
-            point_cloud_topic, camera_info_topic,
-            retinanet_checkpoint, use_cuda,
+    def __init__(self, scores, action_types,
+            retinanet_checkpoint,
+            use_cuda,
             label_map_file,
+            publisher_topic,
+            image_topic='/camera/color/image_raw/compressed',
+            image_msg_type='compressed',
+            depth_image_topic='/camera/aligned_depth_to_color/image_raw',
+            point_cloud_topic=None,
+            camera_info_topic='/camera/color/camera_info',
             detection_frame = "camera_color_optical_frame",
             destination_frame = "map",
             timeout=1.0):
         """
-        @param score_file: food_class x pose (isolated vs wall) x action
+        @param scores: food_class x pose (isolated vs wall) x action
                             -> success rate
         """
-        super(ActionDetector, self).__init__(image_topic, image_msg_type,
+        PoseEstimator.__init__(self)
+        CameraSubscriber.__init__(self, image_topic, image_msg_type,
             image_compressed, depth_image_topic, point_cloud_topic,
             camera_info_topic)
+        ImagePublisher.__init__(self, publisher_topic)
 
-        self.score = json.loads(score_file)
+        self.score = json.loads(scores)
         self.actions = self.action_types
         self.retinanet, self.retinanet_transform, self.encoder =
             load_retinanet(use_cuda, retinanet_checkpoint)
