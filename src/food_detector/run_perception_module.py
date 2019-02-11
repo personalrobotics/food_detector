@@ -3,7 +3,7 @@ import rospy
 import os
 
 import argparse
-from deep_pose_estimators import run_detection
+from deep_pose_estimators.run_perception_module import run_detection
 from deep_pose_estimators.perception_module import PerceptionModule
 from food_detector import FoodDetector
 from visualization_msgs.msg import Marker

@@ -12,7 +12,8 @@ import cv2
 import pcl
 import rospy
 import rospkg
-from tf.transformations import quaternion_matrix
+from tf.transformations import quaternion_matrix, quaternion_from_euler
+from scipy.special import softmax
 
 import torch
 import torchvision.transforms as transforms
@@ -39,15 +40,14 @@ from bite_selection_package.spnet_config import config as spnet_config
 from laura_model1.run_test import Model1
 
 from deep_pose_estimators.pose_estimators import PoseEstimator
-from deep_pose_estimators.utils import math_utils
 from deep_pose_estimators.utils import pcl_utils
 from deep_pose_estimators.detected_item import DetectedItem
 
 
 
 # A pose estimator for detecting object and skewering pose
-class FoodDetection(PoseEstimator):
-    def __init__(self, title='FoodDetection',
+class FoodDetector(PoseEstimator):
+    def __init__(self, title='FoodDetector',
                  use_spnet=True, use_cuda=True, use_model1=False):
         self.title = title
 
@@ -378,7 +378,7 @@ class FoodDetection(PoseEstimator):
                     final_rotation = rotations[0]
                 else:
                     final_rotation = np.sum(
-                        rotations * math_utils.softmax(rot_prob))
+                        rotations * softmax(rot_prob))
             else:
                 final_rotation = -1
             this_item.append(final_rotation)
@@ -426,11 +426,11 @@ class FoodDetection(PoseEstimator):
         draw = ImageDraw.Draw(img, 'RGBA')
 
         bmask = pred_bmasks[0].data.cpu().numpy()
-        bmask = math_utils.softmax(bmask)
+        bmask = softmax(bmask)
         neg_pos = bmask < 0.001
 
         rmask = pred_rmasks[0].data.cpu().numpy()
-        rmask = math_utils.softmax(rmask, axis=1)
+        rmask = softmax(rmask, axis=1)
         neg_rot = np.max(rmask, axis=1) < 0.5
 
         rmask_prob = np.max(rmask, axis=1)
@@ -755,7 +755,7 @@ class FoodDetection(PoseEstimator):
                     if (current_z0 < 0):
                         current_z0 = z0
 
-                    x, y, z, w = math_utils.angles_to_quaternion(
+                    x, y, z, w = quaternion_from_euler(
                         this_ang + 90, 0., 0.)
                     rvec = np.array([x, y, z, w])
 
