@@ -1,9 +1,5 @@
 ''' configurations for ada '''
 
-from food_detector import FoodDetector
-
-estimator = FoodDetector
-
 gpus = '0'
 use_cuda = True
 
@@ -19,10 +15,10 @@ camera_to_table = 0.335
 camera_tilt = 1e-8
 
 num_classes = 17
-checkpoint = 'external/pytorch-retinanet/checkpoint/food_ckpt.pth'
-label_map = 'external/pytorch-retinanet/data/can_data/food_label_map.pkl'
+checkpoint = '../../external/pytorch_retinanet/checkpoint/food_ckpt.pth'
+label_map = '../../external/bite_selection_package/data/food_label_map.pbtxt'
 
-spnet_checkpoint = 'external/bite_selection_package/checkpoints/spnet_ckpt.pth'
+spnet_checkpoint = '../../external/bite_selection_package/checkpoints/spnet_ckpt.pth'
 
 pred_position = [0.5, 0.5]
 

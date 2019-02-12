@@ -12,18 +12,19 @@ import cv2
 import pcl
 import rospy
 import rospkg
+
 from tf.transformations import quaternion_matrix, quaternion_from_euler
 from scipy.special import softmax
+from visualization_msgs.msg import Marker, MarkerArray
+from sensor_msgs.msg import CompressedImage, Image, CameraInfo
+from cv_bridge import CvBridge
 
 import torch
 import torchvision.transforms as transforms
-
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
-from visualization_msgs.msg import Marker, MarkerArray
-from sensor_msgs.msg import CompressedImage, Image, CameraInfo
-import sensor_msgs.point_cloud2 as pc2
-from cv_bridge import CvBridge
+
+import ada_feeding_demo_config as conf
 
 rospack = rospkg.RosPack()
 pkg_base = rospack.get_path('food_detector')
@@ -44,10 +45,9 @@ from deep_pose_estimators.utils import pcl_utils
 from deep_pose_estimators.detected_item import DetectedItem
 
 
-
 # A pose estimator for detecting object and skewering pose
 class FoodDetector(PoseEstimator):
-    def __init__(self, title='FoodDetector',
+    def __init__(self, title='food_detector',
                  use_spnet=True, use_cuda=True, use_model1=False):
         self.title = title
 
@@ -104,16 +104,16 @@ class FoodDetector(PoseEstimator):
             "carrot", "melon", "apple", "banana", "strawberry"]
         self.selector_index = 0
 
-    def create_detected_item(self, rvec, tvec, t_class_name, t_class, box_key, sp_idx):
+    def create_detected_item(self, rvec, tvec, t_class_name,
+                             db_key='food_item'):
         pose = quaternion_matrix(rvec)
         pose[:3, 3] = tvec
 
-        # TODO: Youngsun to fill in
         return DetectedItem(
-            frame_id = self.frame,
-            marker_namespace=t_class_name,
-            marker_id=-1, # It is the marker manager's job to assign an id
-            db_key=box_key,
+            frame_id=self.frame,
+            marker_namespace='{}_{}'.format(self.title, t_class_name),
+            marker_id=-1,  # It is the marker manager's job to assign an id
+            db_key=db_key,
             pose=pose,
             detected_time=rospy.Time.now())
 
@@ -129,6 +129,7 @@ class FoodDetector(PoseEstimator):
                 self.sensor_image_callback, queue_size=1)
         print('subscribed to {}'.format(conf.image_topic))
 
+        # subscribe depth topic
         if (conf.depth_image_topic is not None and
                 len(conf.depth_image_topic) > 0):
             # subscribe depth topic, only raw for now
@@ -136,13 +137,6 @@ class FoodDetector(PoseEstimator):
                 conf.depth_image_topic, Image,
                 self.sensor_depth_callback, queue_size=1)
             print('subscribed to {}'.format(conf.depth_image_topic))
-
-        if (conf.pointcloud_topic is not None and
-                len(conf.pointcloud_topic) > 0):
-            self.pointcloud_subscriber = rospy.Subscriber(
-                conf.pointcloud_topic, pc2.PointCloud2,
-                self.lidar_scan_callback, queue_size=10)
-            print('subscribed to {}'.format(conf.pointcloud_topic))
 
         # subscribe camera info topic
         self.subscriber = rospy.Subscriber(
@@ -154,11 +148,6 @@ class FoodDetector(PoseEstimator):
         self.pub_img = rospy.Publisher(
             '{}/detection_image'.format(self.title),
             Image,
-            queue_size=2)
-
-        self.pub_table = rospy.Publisher(
-            '{}/table_point_cloud2'.format(self.title),
-            pc2.PointCloud2,
             queue_size=2)
 
     def sensor_compressed_image_callback(self, ros_data):
@@ -175,45 +164,13 @@ class FoodDetector(PoseEstimator):
     def camera_info_callback(self, ros_data):
         self.camera_info = ros_data
 
-    def lidar_scan_callback(self, ros_data):
-        this_plist = list()
-        for data in pc2.read_points(ros_data, skip_nans=True):
-            if (data[0] > -0.75 and data[0] < 0.75 and
-                    data[1] > -0.05 and data[1] < 0.5 and
-                    data[2] > 0.45 and data[2] < 1.1):
-                    # data[3] > 2500 and data[3] < 4000):
-                this_plist.append([data[0], data[1], data[2], data[3]])
-
-        self.agg_pc_data.append(this_plist)
-        if len(self.agg_pc_data) > max_len:
-            del self.agg_pc_data[0]
-
-            merged_list = self.agg_pc_data[0]
-            for idx in range(1, len(self.agg_pc_data)):
-                merged_list.extend(self.agg_pc_data[idx])
-            pcl_cloud = pcl.PointCloud_PointXYZRGB()
-            pcl_cloud.from_list(merged_list)
-
-            seg = pcl_cloud.make_segmenter()
-            seg.set_optimize_coefficients(True)
-            seg.set_model_type(pcl.SACMODEL_PLANE)
-            seg.set_method_type(pcl.SAC_RANSAC)
-            seg.set_distance_threshold(0.01)
-            indices, model = seg.segment()
-
-            self.camera_to_table = model[3]  # ax + by + cz + d = 0
-
-            table_cloud = pcl_cloud.extract(indices)
-            new_ros_msg = pcl_utils.pcl_to_ros(table_cloud)
-            self.pub_table.publish(new_ros_msg)
-
     def init_retinanet(self):
         self.retinanet = RetinaNet()
         if self.use_cuda:
-            ckpt = torch.load(os.path.expanduser(config.checkpoint))
+            ckpt = torch.load(os.path.expanduser(conf.checkpoint))
         else:
             ckpt = torch.load(
-                os.path.expanduser(config.checkpoint), map_location='cpu')
+                os.path.expanduser(conf.checkpoint), map_location='cpu')
         self.retinanet.load_state_dict(ckpt['net'])
         self.retinanet.eval()
         if self.use_cuda:
@@ -278,7 +235,7 @@ class FoodDetector(PoseEstimator):
         ])
 
     def load_label_map(self):
-        with open(os.path.expanduser(config.label_map), 'r') as f:
+        with open(os.path.expanduser(conf.label_map), 'r') as f:
             content = f.read().splitlines()
             f.close()
         assert content is not None, 'cannot find label map'
@@ -738,8 +695,8 @@ class FoodDetector(PoseEstimator):
 
             if spBoxIdx >= 0:
                 for sp_idx in range(len(sp_poses)):
-                    box_key = '{}_{}_{}_{}'.format(
-                        t_class_name, int(txmin), int(tymin), sp_idx)
+                    # box_key = '{}_{}_{}_{}'.format(
+                    #     t_class_name, int(txmin), int(tymin), sp_idx)
                     this_pos = sp_poses[sp_idx]
                     this_ang = sp_angles[sp_idx]
 
@@ -764,13 +721,12 @@ class FoodDetector(PoseEstimator):
                     ty = (tz / cam_fy) * (pt[1] - cam_cy)
                     tvec = np.array([tx, ty, tz])
 
-                    rst_vecs = [rvec, tvec,
-                                t_class_name, t_class,
-                                box_key, sp_idx]
-                    detections.append(create_detected_item(rst_vecs))
+                    detections.append(self.create_detected_item(
+                        rvec, tvec, t_class_name, t_class))
 
         # visualize detections
         fnt = ImageFont.truetype('Pillow/Tests/fonts/DejaVuSans.ttf', 12)
+        draw = ImageDraw.Draw(img, 'RGBA')
 
         for idx in range(len(boxes)):
             box = boxes[idx].numpy() - bbox_offset
