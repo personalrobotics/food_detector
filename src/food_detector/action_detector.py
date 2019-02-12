@@ -73,9 +73,13 @@ class ActionDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             self.detection_frame,
             self.timeout)
 
+        # Register all UV Points in wall detector
+        for _, uv in detected_items:
+            self.wall_detector.register_uv(uv)
+
         for item, uv in detected_items:
             # @Ethan this is where the wall detector gets called
-            wall_type = self.wall_detector.detect_wall(uv, camera_transform)
+            wall_type = self.wall_detector.classify(uv, self.img_msg, self.depth_img_msg)
 
             scores = [self.score[item.namespace][wall_type][action]
                 for action in self.actions]
