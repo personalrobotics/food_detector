@@ -2,13 +2,17 @@ import sys
 import rospy
 import os
 import json
-
 import argparse
-from deep_pose_estimators import run_detection
-from deep_pose_estimators.perception_module import PerceptionModule
-from food_detector import FoodDetector
+
 from visualization_msgs.msg import Marker
+
+from deep_pose_estimators.run_perception_module import run_detection
+from deep_pose_estimators.perception_module import PerceptionModule
+from deep_pose_estimators.marker_manager import MarkerManager
+
 import ada_feeding_demo_config as conf
+from food_detector import FoodDetector
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Run perception module for ada feeding projects")
@@ -17,7 +21,8 @@ if __name__ == '__main__':
 
     rospy.init_node("food_detection")
 
-    if args.demo_type == "spnet_skewer":        
+    if args.demo_type == "spnet-skewer":
+        import ada_feeding_demo_config as conf
         # TODO: shall we allow other options?
         pose_estimator = FoodDetector(use_spnet=True, use_cuda=True, use_model1=False)
     else:

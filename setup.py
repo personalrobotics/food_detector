@@ -8,5 +8,8 @@ d = generate_distutils_setup(
         'food_detector'
     ],
     package_dir={'': 'src'},
+    install_requires=[
+        'scipy>=1.2.1'
+    ]
 )
 setup(**d)

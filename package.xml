@@ -11,13 +11,14 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>python</depend>
-  
+
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>deep_pose_estimators</exec_depend>
+  <exec_depend>scipy</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>pytorch</exec_depend>
 
 </package>
- 
+
