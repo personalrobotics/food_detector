@@ -7,14 +7,12 @@ from __future__ import with_statement
 import numpy as np
 import os
 import sys
-import json
 import cv2
 import rospy
 import rospkg
 
 from tf.transformations import quaternion_matrix, quaternion_from_euler
 from scipy.special import softmax
-from visualization_msgs.msg import Marker, MarkerArray
 from sensor_msgs.msg import CompressedImage, Image, CameraInfo
 from cv_bridge import CvBridge
 
@@ -220,7 +218,7 @@ class FoodDetector(PoseEstimator):
                     os.path.dirname(__file__),
                     '../external/laura_model1/checkpoint/model1_ckpt.pth'),
                 map_location='cpu')
-        print ("check point", ckpt)
+        print("check point", ckpt)
         self.model1.load_state_dict(ckpt['net'])
         self.model1.eval()
         if self.use_cuda:
@@ -342,7 +340,7 @@ class FoodDetector(PoseEstimator):
             group_list.append(this_item)
         return group_list
 
-    def publish_spnet(self, sliced_img, identity, actuallyPublish = False):
+    def publish_spnet(self, sliced_img, identity, actuallyPublish=False):
         should_publish_spnet = True
         if rospy.has_param('/deep_pose/publish_spnet'):
             should_publish_spnet = rospy.get_param('/deep_pose/publish_spnet')
@@ -397,9 +395,9 @@ class FoodDetector(PoseEstimator):
         rmask = rmask_argmax * 180 / self.angle_res
 
         if identity in ["celery", "carrot"]:
-            rmask[rmask < 0] = -2 # don't use "no rotation"
+            rmask[rmask < 0] = -2  # don't use "no rotation"
         else:
-            rmask[rmask < 0] = -1 # do use "no rotation"
+            rmask[rmask < 0] = -1  # do use "no rotation"
         rmask[neg_pos] = -2
         rmask[neg_rot] = -2
         rmask = rmask.reshape(self.mask_size, self.mask_size)
@@ -625,8 +623,6 @@ class FoodDetector(PoseEstimator):
 
         bbox_offset = 5
 
-        first_food_item = True
-
         found = False
         spBoxIdx = -1
         for _ in range(len(self.selector_food_names)):
@@ -648,8 +644,8 @@ class FoodDetector(PoseEstimator):
                     found = True
                     spBoxIdx = box_idx
                     cropped_img = copied_img_msg[
-                        int(max(tymin,0)):int(min(tymax, height)),
-                        int(max(txmin,0)):int(min(txmax, width))]
+                        int(max(tymin, 0)):int(min(tymax, height)),
+                        int(max(txmin, 0)):int(min(txmax, width))]
 
                     if self.use_spnet:
                         sp_poses, sp_angles = self.publish_spnet(
@@ -677,16 +673,16 @@ class FoodDetector(PoseEstimator):
                 continue
 
             cropped_img = copied_img_msg[
-                int(max(tymin,0)):int(min(tymax, height)),
-                int(max(txmin,0)):int(min(txmax, width))]
+                int(max(tymin, 0)):int(min(tymax, height)),
+                int(max(txmin, 0)):int(min(txmax, width))]
 
             if self.use_spnet:
                 sp_poses, sp_angles = self.publish_spnet(
                     cropped_img, t_class_name, False)
 
             cropped_depth = depth_img[
-                int(max(tymin,0)):int(min(tymax, height)),
-                int(max(txmin,0)):int(min(txmax, width))]
+                int(max(tymin, 0)):int(min(tymax, height)),
+                int(max(txmin, 0)):int(min(txmax, width))]
             z0 = self.calculate_depth(cropped_depth)
             if z0 < 0:
                 print("skipping " + t_class_name + " due to invalid z0")
@@ -705,8 +701,8 @@ class FoodDetector(PoseEstimator):
 
                     coff = 60
                     cropped_depth = depth_img[
-                        int(pt[1]-coff):int(pt[1]+coff),
-                        int(pt[0]-coff):int(pt[1]+coff)]
+                        int(pt[1] - coff):int(pt[1] + coff),
+                        int(pt[0] - coff):int(pt[1] + coff)]
                     current_z0 = self.calculate_depth(cropped_depth)
                     if (current_z0 < 0):
                         current_z0 = z0
@@ -757,4 +753,3 @@ class FoodDetector(PoseEstimator):
         self.pub_img.publish(msg_img)
 
         return detections
-

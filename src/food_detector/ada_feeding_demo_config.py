@@ -30,4 +30,3 @@ pred_position = [0.5, 0.5]
 node_title = 'deep_pose'
 marker_ns = 'food_item'
 frequency = 20
-
