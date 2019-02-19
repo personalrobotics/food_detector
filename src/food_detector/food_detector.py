@@ -125,12 +125,12 @@ class FoodDetector(PoseEstimator):
         """
         Finds ths closest bounding box in the current list and
         updates it with the provided x, y
-        @param x: center x-position of a bounding box in 2D image
-        @param y: center y-position of a bounding box in 2D image
+        @param x: Center x-position of a bounding box in 2D image
+        @param y: Center y-position of a bounding box in 2D image
         @param class_name: Class name of the associated item
-        @param tolerance: pixel tolerance. If no box of same class is found
+        @param tolerance: Pixel tolerance. If no box of same class is found
         within this tolerance, adds a new box with a new id
-        @return box id associated with the closest bounding box
+        @return Box id associated with the closest bounding box
         """
         min_distance = np.float('inf')
         matched_id = None
@@ -446,115 +446,71 @@ class FoodDetector(PoseEstimator):
 
         bmask = bmask.reshape(self.mask_size, self.mask_size)
 
-        sp_mode = 'mask'  # group / mask
         rotation_mode = 'normal'  # normal / alt
         sp_poses = list()
         sp_angles = list()
+        sp_scores = list()
 
-        if sp_mode == 'group':
-            group_list = self.group_rmask(rmask, rmask_prob)
+        done = False
+        for ri in range(self.mask_size):
+            for ci in range(self.mask_size):
+                rotation = rmask[ri][ci]
+                score = bmask[ri][ci]
+                if rotation >= -1:
+                    if rotation_mode == 'alt':
+                        cp = self.mask_size / 2
+                        rotation = -np.degrees(
+                            np.arctan2(ri - cp, ci - cp))
 
-            for item in group_list:
-                ri, ci = item[0]
-                rotation = item[1]
+                    rotation = -rotation
+                    ix = ci * self.final_size / self.mask_size
+                    iy = ri * self.final_size / self.mask_size
 
-                if rotation_mode == 'alt':
-                    cp = self.mask_size / 2
-                    rotation = -np.degrees(np.arctan2(ri - cp, ci - cp))
+                    rot_rad = np.radians(rotation)
+                    iw = (-np.sin(rot_rad) * 4 *
+                          (self.final_size / self.target_size))
+                    ih = (np.cos(rot_rad) * 4 *
+                          (self.final_size / self.target_size))
 
-                rotation = -rotation
-                ix = ci * self.final_size / self.mask_size
-                iy = ri * self.final_size / self.mask_size
+                    rot_alpha = int(bmask[ri][ci] * 200) + 55
+                    if -rotation == -1:
+                        line_color = (40, 255, 100, rot_alpha)
+                    else:
+                        line_color = (30, 30, 250, rot_alpha)
 
-                rot_rad = np.radians(rotation)
-                iw = (-np.sin(rot_rad) * 4 *
-                      (self.final_size / self.target_size))
-                ih = (np.cos(rot_rad) * 4 *
-                      (self.final_size / self.target_size))
+                    draw.line(
+                        (ix - iw, iy - ih, ix + iw, iy + ih),
+                        fill=line_color,
+                        width=int(float(self.final_size) /
+                                  float(self.target_size)*2))
+                    sp_poses.append(
+                        [ci / float(self.mask_size),
+                         ri / float(self.mask_size)])
+                    scores.append(score)
 
-                if -rotation == -1:
-                    line_color = (40, 255, 100, 250)
-                else:
-                    line_color = (30, 30, 250, 250)
-
-                draw.line(
-                    (ix - iw, iy - ih, ix + iw, iy + ih),
-                    fill=line_color,
-                    width=int(float(self.final_size) /
-                              float(self.target_size) * 2))
-                sp_poses.append(
-                    [ci / float(self.mask_size),
-                     ri / float(self.mask_size)])
-
-                x1 = iw
-                y1 = ih
-                x2 = 0.5 - ci / float(self.mask_size)
-                y2 = 0.5 - ri / float(self.mask_size)
-                a = x1 * y2 - x2 * y1
-                if invert_spnet_direction:
-                    if a < 0:
-                        rotation += 180
-                else:
-                    if a > 0:
-                        rotation += 180
-                sp_angles.append(rotation)
-
-        else:  # sp_mode = 'mask'
-            done = False
-            for ri in range(self.mask_size):
-                for ci in range(self.mask_size):
-                    rotation = rmask[ri][ci]
-                    if rotation >= -1:
-                        if rotation_mode == 'alt':
-                            cp = self.mask_size / 2
-                            rotation = -np.degrees(
-                                np.arctan2(ri - cp, ci - cp))
-
-                        rotation = -rotation
-                        ix = ci * self.final_size / self.mask_size
-                        iy = ri * self.final_size / self.mask_size
-
-                        rot_rad = np.radians(rotation)
-                        iw = (-np.sin(rot_rad) * 4 *
-                              (self.final_size / self.target_size))
-                        ih = (np.cos(rot_rad) * 4 *
-                              (self.final_size / self.target_size))
-
-                        rot_alpha = int(bmask[ri][ci] * 200) + 55
-                        if -rotation == -1:
-                            line_color = (40, 255, 100, rot_alpha)
-                        else:
-                            line_color = (30, 30, 250, rot_alpha)
-
-                        draw.line(
-                            (ix - iw, iy - ih, ix + iw, iy + ih),
-                            fill=line_color,
-                            width=int(float(self.final_size) /
-                                      float(self.target_size)*2))
-                        sp_poses.append(
-                            [ci / float(self.mask_size),
-                             ri / float(self.mask_size)])
-
-                        x1 = iw
-                        y1 = ih
-                        x2 = 0.5 - ci / float(self.mask_size)
-                        y2 = 0.5 - ri / float(self.mask_size)
-                        a = x1 * y2 - x2 * y1
-                        if invert_spnet_direction:
-                            if a < 0:
-                                rotation += 180
-                        else:
-                            if a > 0:
-                                rotation += 180
-                        sp_angles.append(rotation)
-                        # done = True
-                    if done: break
+                    x1 = iw
+                    y1 = ih
+                    x2 = 0.5 - ci / float(self.mask_size)
+                    y2 = 0.5 - ri / float(self.mask_size)
+                    a = x1 * y2 - x2 * y1
+                    if invert_spnet_direction:
+                        if a < 0:
+                            rotation += 180
+                    else:
+                        if a > 0:
+                            rotation += 180
+                    sp_angles.append(rotation)
+                    # done = True
                 if done: break
+            if done: break
 
         if actuallyPublish:
             msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
             self.pub_spnet_img.publish(msg_img)
-        return sp_poses, sp_angles
+
+        # Return only the one with the highest score
+        max_score_idx = np.argmax(sp_scores)
+        return sp_poses[max_score_idx], sp_angles[max_score_idx]
 
     def detect_objects(self):
         if self.img_msg is None:
@@ -714,18 +670,20 @@ class FoodDetector(PoseEstimator):
             if (txmin < 0 or tymin < 0 or txmax > width or tymax > height):
                 continue
 
-            # center
-            center_x = (txmax + txmin) / 2.0
-            center_y = (tymax + tymin) / 2.0
-            box_id  = self.find_closest_box_and_update(center_x, center_y, t_class_name)
-
             cropped_img = copied_img_msg[
                 int(max(tymin, 0)):int(min(tymax, height)),
                 int(max(txmin, 0)):int(min(txmax, width))]
 
             if self.use_spnet:
-                sp_poses, sp_angles = self.publish_spnet(
+                sp_pose, sp_angle = self.publish_spnet(
                     cropped_img, t_class_name, False)
+                class_box_id  = self.find_closest_box_and_update(
+                        sp_pose[0], sp_pose[1], t_class_name)
+            else:
+                center_x = (txmin + txmax) / 2.0
+                center_y = (tymin + tymax) / 2.0
+                class_box_id = self.find_closest_box_and_update(
+                        center_x, center_y, t_class_name)
 
             cropped_depth = depth_img[
                 int(max(tymin, 0)):int(min(tymax, height)),
@@ -736,35 +694,32 @@ class FoodDetector(PoseEstimator):
                 continue
 
             if spBoxIdx >= 0:
-                for sp_idx in range(len(sp_poses)):
-                    # box_key = '{}_{}_{}_{}'.format(
-                    #     t_class_name, int(txmin), int(tymin), sp_idx)
-                    this_pos = sp_poses[sp_idx]
-                    this_ang = sp_angles[sp_idx]
+                this_pos = sp_pose
+                this_ang = sp_angle
 
-                    txoff = (txmax - txmin) * this_pos[0]
-                    tyoff = (tymax - tymin) * this_pos[1]
-                    pt = [txmin + txoff, tymin + tyoff]
+                txoff = (txmax - txmin) * this_pos[0]
+                tyoff = (tymax - tymin) * this_pos[1]
+                pt = [txmin + txoff, tymin + tyoff]
 
-                    coff = 60
-                    cropped_depth = depth_img[
-                        int(pt[1] - coff):int(pt[1] + coff),
-                        int(pt[0] - coff):int(pt[1] + coff)]
-                    current_z0 = self.calculate_depth(cropped_depth)
-                    if (current_z0 < 0):
-                        current_z0 = z0
+                coff = 60
+                cropped_depth = depth_img[
+                    int(pt[1] - coff):int(pt[1] + coff),
+                    int(pt[0] - coff):int(pt[1] + coff)]
+                current_z0 = self.calculate_depth(cropped_depth)
+                if (current_z0 < 0):
+                    current_z0 = z0
 
-                    x, y, z, w = quaternion_from_euler(
-                        this_ang + 90, 0., 0.)
-                    rvec = np.array([x, y, z, w])
+                x, y, z, w = quaternion_from_euler(
+                    this_ang + 90, 0., 0.)
+                rvec = np.array([x, y, z, w])
 
-                    tz = current_z0
-                    tx = (tz / cam_fx) * (pt[0] - cam_cx)
-                    ty = (tz / cam_fy) * (pt[1] - cam_cy)
-                    tvec = np.array([tx, ty, tz])
+                tz = current_z0
+                tx = (tz / cam_fx) * (pt[0] - cam_cx)
+                ty = (tz / cam_fy) * (pt[1] - cam_cy)
+                tvec = np.array([tx, ty, tz])
 
-                    detections.append(self.create_detected_item(
-                        rvec, tvec, t_class_name, t_class, box_id))
+                detections.append(self.create_detected_item(
+                    rvec, tvec, t_class_name, t_class, class_box_id))
 
         # visualize detections
         fnt = ImageFont.truetype('Pillow/Tests/fonts/DejaVuSans.ttf', 12)
