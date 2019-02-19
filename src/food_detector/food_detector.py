@@ -100,7 +100,15 @@ class FoodDetector(PoseEstimator):
             "carrot", "melon", "apple", "banana", "strawberry"]
         self.selector_index = 0
 
-    def create_detected_item(self, rvec, tvec, t_class_name,
+        # Keeps track of previously detected items'
+        # center of bounding boxes, class names and associate each
+        # box x class with a unique id
+        # Used fortracking (temporarily)
+        self.detected_item_boxes = dict()
+        for food in self.selector_food_names:
+            self.detected_item_boxes[food] = dict()
+
+    def create_detected_item(self, rvec, tvec, t_class_name, box_id
                              db_key='food_item'):
         pose = quaternion_matrix(rvec)
         pose[:3, 3] = tvec
@@ -108,10 +116,42 @@ class FoodDetector(PoseEstimator):
         return DetectedItem(
             frame_id=self.frame,
             marker_namespace='{}_{}'.format(self.title, t_class_name),
-            marker_id=-1,  # It is the marker manager's job to assign an id
+            marker_id=box_id,
             db_key=db_key,
             pose=pose,
             detected_time=rospy.Time.now())
+
+    def find_closest_box_and_update(self, x, y, class_name, tolerance=5):
+        """
+        @param x: center x-position of a bounding box in 2D image
+        @param y: center y-position of a bounding box in 2D image
+        @param class_name: Class name of the associated item
+        @param tolerance: pixel tolerance. If no box of same class is found
+        within this tolereance, adds a new box with a new id
+        return box id associated with the closest bounding box
+        """
+        min_distance = np.float('int')
+        matched_id = None
+        largest_id = -1
+        for bid, (bx, by) in self.detected_item_boxes[class_name].iteritems():
+            distance = np.linalg.norm(np.array([x, y]) - np.array([bx, by]))
+            largest_id = max(largest_id, bid)
+            if distance >= tolerance:
+                continue
+            if distance < min_distance:
+                min_distance = distance
+                matched_id = bid
+                matched_position = (bx, by)
+
+        if matched_id is not None:
+            self.detected_item_boxes[class_name][matched_id] = (x, y)
+            print("Detected the closest box with id {} for {} at distance {}".format(matched_id, class_name, min_distance))
+        else:
+            self.detected_item_boxes[class_name][largest_id + 1] = (x, y)
+            matched_id = largest_id + 1
+            print("Adding a new box with id {} for {}".format(matched_id, class_name)
+
+        return matched_id
 
     def init_ros_subscribers(self):
         # subscribe image topic
@@ -672,6 +712,11 @@ class FoodDetector(PoseEstimator):
             if (txmin < 0 or tymin < 0 or txmax > width or tymax > height):
                 continue
 
+            # center
+            center_x = (txmax + txmin) / 2.0
+            center_y = (tymax + tymin) / 2.0
+            box_id  = self.find_closest_box_and_update(center_x, center_y, t_class_name)
+
             cropped_img = copied_img_msg[
                 int(max(tymin, 0)):int(min(tymax, height)),
                 int(max(txmin, 0)):int(min(txmax, width))]
@@ -717,7 +762,7 @@ class FoodDetector(PoseEstimator):
                     tvec = np.array([tx, ty, tz])
 
                     detections.append(self.create_detected_item(
-                        rvec, tvec, t_class_name, t_class))
+                        rvec, tvec, t_class_name, t_class, box_id))
 
         # visualize detections
         fnt = ImageFont.truetype('Pillow/Tests/fonts/DejaVuSans.ttf', 12)
