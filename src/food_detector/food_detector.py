@@ -9,7 +9,6 @@ import os
 import sys
 import json
 import cv2
-import pcl
 import rospy
 import rospkg
 
@@ -41,7 +40,6 @@ from bite_selection_package.spnet_config import config as spnet_config
 from laura_model1.run_test import Model1
 
 from deep_pose_estimators.pose_estimators import PoseEstimator
-from deep_pose_estimators.utils import pcl_utils
 from deep_pose_estimators.detected_item import DetectedItem
 
 
@@ -166,6 +164,7 @@ class FoodDetector(PoseEstimator):
 
     def init_retinanet(self):
         self.retinanet = RetinaNet()
+        print(os.path.expanduser(conf.checkpoint))
         if self.use_cuda:
             ckpt = torch.load(os.path.expanduser(conf.checkpoint))
         else:
@@ -192,10 +191,10 @@ class FoodDetector(PoseEstimator):
 
         if self.use_cuda:
             ckpt = torch.load(
-                os.path.expanduser(spnet_config.checkpoint_best_filename))
+                os.path.expanduser(conf.spnet_checkpoint))
         else:
             ckpt = torch.load(
-                os.path.expanduser(spnet_config.checkpoint_best_filename),
+                os.path.expanduser(conf.spnet_checkpoint),
                 map_location='cpu')
 
         self.spnet.load_state_dict(ckpt['net'])
@@ -215,13 +214,13 @@ class FoodDetector(PoseEstimator):
         if self.use_cuda:
             ckpt = torch.load(os.path.join(
                     os.path.dirname(__file__),
-                    'external/laura_model1/checkpoint/model1_ckpt.pth'))
+                    '../external/laura_model1/checkpoint/model1_ckpt.pth'))
         else:
             ckpt = torch.load(os.path.join(
                     os.path.dirname(__file__),
-                    'external/laura_model1/checkpoint/model1_ckpt.pth'),
+                    '../external/laura_model1/checkpoint/model1_ckpt.pth'),
                 map_location='cpu')
-
+        print ("check point", ckpt)
         self.model1.load_state_dict(ckpt['net'])
         self.model1.eval()
         if self.use_cuda:
