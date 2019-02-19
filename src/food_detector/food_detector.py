@@ -123,14 +123,16 @@ class FoodDetector(PoseEstimator):
 
     def find_closest_box_and_update(self, x, y, class_name, tolerance=5):
         """
+        Finds ths closest bounding box in the current list and
+        updates it with the provided x, y
         @param x: center x-position of a bounding box in 2D image
         @param y: center y-position of a bounding box in 2D image
         @param class_name: Class name of the associated item
         @param tolerance: pixel tolerance. If no box of same class is found
-        within this tolereance, adds a new box with a new id
-        return box id associated with the closest bounding box
+        within this tolerance, adds a new box with a new id
+        @return box id associated with the closest bounding box
         """
-        min_distance = np.float('int')
+        min_distance = np.float('inf')
         matched_id = None
         largest_id = -1
         for bid, (bx, by) in self.detected_item_boxes[class_name].iteritems():
