@@ -16,14 +16,14 @@ camera_tilt = 1e-8
 
 num_classes = 6  # should match the trained model
 checkpoint = os.path.join(
-                    os.path.dirname(__file__),
-                    '../../external/pytorch_retinanet/checkpoint/food_ckpt.pth')
+    os.path.dirname(__file__),
+    '../../external/pytorch_retinanet/checkpoint/food_ckpt.pth')
 label_map = os.path.join(
-                    os.path.dirname(__file__),
-                    '../../external/bite_selection_package/data/food_label_map.pbtxt')
+    os.path.dirname(__file__),
+    '../../external/bite_selection_package/data/food_label_map.pbtxt')
 spnet_checkpoint = os.path.join(
-                    os.path.dirname(__file__),
-                    '../../external/bite_selection_package/checkpoint/spnet_ckpt.pth')
+    os.path.dirname(__file__),
+    '../../external/bite_selection_package/checkpoint/spnet_ckpt.pth')
 
 pred_position = [0.5, 0.5]
 
