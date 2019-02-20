@@ -259,6 +259,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     copied_img_msg, t_class_name)
 
             if not skewer_xy:
+                self.visualize_detections(img, [], [], [], bbox_offset)
                 return list()
 
             class_box_id = self.find_closest_box_and_update(
@@ -313,7 +314,6 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         # visualize detections
         fnt = ImageFont.truetype('Pillow/Tests/fonts/DejaVuSans.ttf', 12)
         draw = ImageDraw.Draw(img, 'RGBA')
-        print(labels)
 
         for idx in range(len(boxes)):
             box = boxes[idx].numpy() - bbox_offset
