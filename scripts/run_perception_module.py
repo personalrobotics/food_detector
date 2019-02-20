@@ -19,7 +19,6 @@ if __name__ == '__main__':
         "--demo-type", choices=['spnet', 'action-score', 'retinanet'], required=True)
     args = parser.parse_args()
 
-    rospy.init_node("food_detection")
 
     if args.demo_type == 'retinanet':
         # TODO
@@ -27,7 +26,8 @@ if __name__ == '__main__':
     elif args.demo_type == "spnet":
         import food_detector.ada_feeding_demo_config as conf
         # TODO: shall we allow other options?
-        pose_estimator = FoodDetector(use_cuda=True)
+        rospy.init_node(conf.node_name)
+        pose_estimator = FoodDetector(node_name=conf.node_name, use_cuda=True)
     else:
         raise NotImplementedError
 

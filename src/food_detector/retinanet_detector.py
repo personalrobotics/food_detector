@@ -26,7 +26,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             camera_tilt,
             camera_to_table,
             frame,
-            publisher_topic='food_detector',
+            node_name,
             image_topic='/camera/color/image_raw/compressed',
             image_msg_type='compressed',
             depth_image_topic='/camera/aligned_depth_to_color/image_raw',
@@ -40,7 +40,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             depth_image_topic=depth_image_topic,
             pointcloud_topic=None,
             camera_info_topic=camera_info_topic)
-        ImagePublisher.__init__(self, publisher_topic)
+        ImagePublisher.__init__(self, node_name)
 
         self.retinanet, self.retinanet_transform, self.encoder = load_retinanet(use_cuda, retinanet_checkpoint)
         self.label_map = load_label_map(label_map_file)
@@ -51,7 +51,6 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         self.selector_index = 0
 
         self.use_cuda = use_cuda
-        self.publisher_topic = publisher_topic
 
         self.camera_tilt = camera_tilt
         self.camera_to_table = camera_to_table
