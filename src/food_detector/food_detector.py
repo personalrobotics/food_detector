@@ -18,8 +18,6 @@ from cv_bridge import CvBridge
 
 import torch
 import torchvision.transforms as transforms
-from PIL import Image as PILImage
-from PIL import ImageDraw, ImageFont
 
 import ada_feeding_demo_config as conf
 
@@ -29,33 +27,34 @@ external_path = os.path.join(
     pkg_base, 'external')
 sys.path.append(external_path)
 
+from PIL import Image as PILImage
+from PIL import ImageDraw, ImageFont
+
 from pytorch_retinanet.model.retinanet import RetinaNet
 from pytorch_retinanet.retinanet_utils.encoder import DataEncoder
 
 from bite_selection_package.model.spnet import SPNet, DenseSPNet
 from bite_selection_package.spnet_config import config as spnet_config
 
-from laura_model1.run_test import Model1
-
 from deep_pose_estimators.pose_estimators import PoseEstimator
 from deep_pose_estimators.detected_item import DetectedItem
-
+from retinanet_detector import RetinaNetDetector
 
 # A pose estimator for detecting object and skewering pose
+# using SPNet
 class FoodDetector(RetinaNetDetector):
-    def __init__(self, title='food_detector',
-                 use_spnet=True, use_cuda=True):
-        RetinaNetDetector.__init__(self.title,
-        self.title = title
-
-        self.encoder = None
-
-        self.use_cuda = use_cuda
+    def __init__(self, publisher_topic='food_detector', use_cuda=True):
+        RetinaNetDetector.__init__(self,
+                retinanet_checkpoint=conf.checkpoint,
+                use_cuda=use_cuda,
+                label_map_file=conf.label_map,
+                publisher_topic=publisher_topic,
+                camera_to_table=conf.camera_to_table,
+                camera_tilt=1e-5,
+                frame=conf.camera_tf)
 
         self.agg_pc_data = list()
-        self.camera_to_table = conf.camera_to_table
-        self.frame = conf.camera_tf
-
+        
         self.spnet = None
         self.spnet_transform = None
 
@@ -67,26 +66,20 @@ class FoodDetector(RetinaNetDetector):
         self.final_size = 512
         self.target_size = 136
 
-        self.camera_tilt = 1e-5
-
         self.pub_img = rospy.Publisher(
-            '{}/detection_image'.format(self.title),
+            '{}/detection_image'.format(self.publisher_topic),
             Image,
             queue_size=2)
         self.pub_target_img = rospy.Publisher(
-            '{}/target_image'.format(self.title),
+            '{}/target_image'.format(self.publisher_topic),
             Image,
             queue_size=2)
         self.pub_spnet_img = rospy.Publisher(
-            '{}/spnet_image'.format(self.title),
+            '{}/spnet_image'.format(self.publisher_topic),
             Image,
             queue_size=2)
 
-        self.bridge = CvBridge()
-
-        self.selector_food_names = [
-            "carrot", "melon", "apple", "banana", "strawberry"]
-        self.selector_index = 0
+        self.init_spnet()
 
     def init_spnet(self):
         if self.use_densenet:
@@ -218,7 +211,7 @@ class FoodDetector(RetinaNetDetector):
                     sp_poses.append(
                         [ci / float(self.mask_size),
                          ri / float(self.mask_size)])
-                    scores.append(score)
+                    sp_scores.append(score)
 
                     x1 = iw
                     y1 = ih
@@ -239,6 +232,9 @@ class FoodDetector(RetinaNetDetector):
         if actuallyPublish:
             msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
             self.pub_spnet_img.publish(msg_img)
+
+        if not sp_scores:
+            return None, None
 
         # Return only the one with the highest score
         max_score_idx = np.argmax(sp_scores)

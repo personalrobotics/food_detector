@@ -4,20 +4,28 @@ import json
 import numpy as np
 import rospy
 from tf import TransformListener
+from PIL import Image as PILImage
+from PIL import ImageDraw, ImageFont
+import torch
 
 from deep_pose_estimators.pose_estimators import PoseEstimator
 from deep_pose_estimators.detected_item import DetectedItem
 from deep_pose_estimators.utils.ros_utils import get_transform_matrix
 from deep_pose_estimators.utils import CameraSubscriber
+from tf.transformations import quaternion_matrix, quaternion_from_euler
+from scipy.special import softmax
 
-from food_detector import ImagePublisher
-from food_detector.util import load_retinanet, load_label_map
+from image_publisher import ImagePublisher
+from util import load_retinanet, load_label_map
 
 class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
     def __init__(self,
             retinanet_checkpoint,
             use_cuda,
             label_map_file,
+            camera_tilt,
+            camera_to_table,
+            frame,
             publisher_topic='food_detector',
             image_topic='/camera/color/image_raw/compressed',
             image_msg_type='compressed',
@@ -25,28 +33,38 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             camera_info_topic='/camera/color/camera_info',
             detection_frame = "camera_color_optical_frame",
             timeout=1.0):
-
         PoseEstimator.__init__(self)
-        CameraSubscriber.__init__(self, image_topic, image_msg_type,
-            image_compressed, depth_image_topic, point_cloud_topic,
-            camera_info_topic)
+        CameraSubscriber.__init__(self,
+            image_topic=image_topic,
+            image_msg_type=image_msg_type,
+            depth_image_topic=depth_image_topic,
+            pointcloud_topic=None,
+            camera_info_topic=camera_info_topic)
         ImagePublisher.__init__(self, publisher_topic)
 
-        self.retinanet, self.retinanet_transform, self.encoder =
-            load_retinanet(use_cuda, retinanet_checkpoint)
+        self.retinanet, self.retinanet_transform, self.encoder = load_retinanet(use_cuda, retinanet_checkpoint)
         self.label_map = load_label_map(label_map_file)
-
-        if self.retinanet is None:
-            self.init_retinanet()
-
-        if self.label_map is None:
-            self.load_label_map()
 
         self.timeout = timeout
 
-        self.selector_food_names = [
-            "carrot", "melon", "apple", "banana", "strawberry"]
+        self.selector_food_names = self.label_map.values()
         self.selector_index = 0
+
+        self.use_cuda = use_cuda
+        self.publisher_topic = publisher_topic
+
+        self.camera_tilt = camera_tilt
+        self.camera_to_table = camera_to_table
+        self.frame = frame
+
+        # Keeps track of previously detected items'
+        # center of bounding boxes, class names and associate each
+        # box x class with a unique id
+        # Used fortracking (temporarily)
+        self.detected_item_boxes = dict()
+        for food in self.selector_food_names:
+            self.detected_item_boxes[food] = dict()
+
 
     def create_detected_item(self, rvec, tvec, t_class_name, box_id,
                              db_key='food_item'):
@@ -55,7 +73,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
         return DetectedItem(
             frame_id=self.frame,
-            marker_namespace='{}_{}'.format(self.title, t_class_name),
+            marker_namespace=t_class_name,
             marker_id=box_id,
             db_key=db_key,
             pose=pose,
@@ -71,7 +89,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         center_y = (tymin + tymax) / 2.0
         return (center_x, center_y), 0.0
 
-    def find_closest_box_and_update(self, x, y, class_name, tolerance=5):
+    def find_closest_box_and_update(self, x, y, class_name, tolerance=40):
         """
         Finds ths closest bounding box in the current list and
         updates it with the provided x, y
@@ -85,47 +103,33 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         min_distance = np.float('inf')
         matched_id = None
         largest_id = -1
+        ids_to_delete = []
         for bid, (bx, by) in self.detected_item_boxes[class_name].iteritems():
             distance = np.linalg.norm(np.array([x, y]) - np.array([bx, by]))
             largest_id = max(largest_id, bid)
             if distance >= tolerance:
                 continue
             if distance < min_distance:
+                if matched_id:
+                    # Pop this one, since we found a closer one
+                    ids_to_delete.append(matched_id)
                 min_distance = distance
                 matched_id = bid
                 matched_position = (bx, by)
 
+        if ids_to_delete:
+            print("Delete ", ids_to_delete)
+            for mid in ids_to_delete:
+                self.detected_item_boxes[class_name].pop(mid)
+
         if matched_id is not None:
             self.detected_item_boxes[class_name][matched_id] = (x, y)
-            print("Detected the closest box with id {} for {} at distance {}".format(matched_id, class_name, min_distance))
         else:
             self.detected_item_boxes[class_name][largest_id + 1] = (x, y)
             matched_id = largest_id + 1
-            print("Adding a new box with id {} for {}".format(matched_id, class_name)
+            print("Adding a new box with id {} for {}".format(matched_id, class_name))
 
         return matched_id
-
-    def load_label_map(self):
-        with open(os.path.expanduser(conf.label_map), 'r') as f:
-            content = f.read().splitlines()
-            f.close()
-        assert content is not None, 'cannot find label map'
-
-        temp = list()
-        for line in content:
-            line = line.strip()
-            if (len(line) > 2 and
-                    (line.startswith('id') or
-                     line.startswith('name'))):
-                temp.append(line.split(':')[1].strip())
-
-        label_dict = dict()
-        for idx in range(0, len(temp), 2):
-            item_id = int(temp[idx])
-            item_name = temp[idx + 1][1:-1]
-            label_dict[item_id] = item_name
-
-        self.label_map = label_dict
 
     def get_index_of_class_name(self, class_name):
         for index, name in self.label_map.items():
@@ -180,6 +184,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         if boxes is None or len(boxes) == 0:
             msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
             self.pub_img.publish(msg_img)
+            print("Nothing detected")
             return list()
 
         # Intrinsic camera matrix for the raw (distorted) images.
@@ -196,7 +201,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         cam_cy = camera_matrix[1, 2]
 
         z0 = (self.camera_to_table /
-              (np.cos(np.radians(90 - conf.camera_tilt)) + 1e-10))
+              (np.cos(np.radians(90 - self.camera_tilt)) + 1e-10))
         # z0 = self.camera_to_table
 
         detections = list()
@@ -231,6 +236,10 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             if found:
                 break
 
+        chosen_boxes = []
+        chosen_labels = []
+        chosen_scores = []
+
         for box_idx in range(len(boxes)):
             t_class = labels[box_idx].item()
             if t_class == -1:
@@ -249,8 +258,11 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     txmin, txmax, tymin, tymax, width, height,
                     copied_img_msg, t_class_name)
 
+            if not skewer_xy:
+                return list()
+
             class_box_id = self.find_closest_box_and_update(
-                    center_x, center_y, t_class_name)
+                    (txmin + txmax) / 2.0, (tymin + tymax) / 2.0, t_class_name)
 
             cropped_depth = depth_img[
                 int(max(tymin, 0)):int(min(tymax, height)),
@@ -288,22 +300,24 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 detections.append(self.create_detected_item(
                     rvec, tvec, t_class_name, t_class, class_box_id))
 
-        self.visualize_detections(boxes, force_food, force_food_name)
+                chosen_boxes.append(boxes[box_idx])
+                chosen_labels.append("{}_{}".format(t_class_name, class_box_id))
+                chosen_scores.append(scores[box_idx])
+
+        self.visualize_detections(img, chosen_boxes,
+            chosen_scores, chosen_labels, bbox_offset)
         return detections
 
 
-    def visualize_detections(self, boxes, force_food, force_food_name=""):
+    def visualize_detections(self, img, boxes, scores, labels, bbox_offset):
         # visualize detections
         fnt = ImageFont.truetype('Pillow/Tests/fonts/DejaVuSans.ttf', 12)
         draw = ImageDraw.Draw(img, 'RGBA')
+        print(labels)
 
         for idx in range(len(boxes)):
             box = boxes[idx].numpy() - bbox_offset
             label = labels[idx]
-            food_name = self.label_map[label.item()]
-            if force_food:
-                food_name = force_food_name
-
             draw.rectangle(box, outline=(255, 0, 0, 200))
             box1 = box + 1
             box1[:2] -= 2
@@ -313,7 +327,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             draw.rectangle(box2, outline=(255, 0, 0, 200))
 
             item_tag = '{0}: {1:.2f}'.format(
-                food_name,
+                label,
                 scores[idx])
             iw, ih = fnt.getsize(item_tag)
             ix, iy = box[:2]
