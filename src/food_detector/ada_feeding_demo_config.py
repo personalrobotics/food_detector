@@ -1,5 +1,8 @@
 ''' configurations for ada '''
+
 import os
+
+
 gpus = '0'
 use_cuda = True
 

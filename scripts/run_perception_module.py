@@ -29,7 +29,7 @@ if __name__ == '__main__':
         import food_detector.ada_feeding_demo_config as conf
         # TODO: shall we allow other options?
         rospy.init_node(conf.node_name)
-        pose_estimator = FoodDetector(node_name=conf.node_name, use_cuda=True)
+        pose_estimator = FoodDetector(use_cuda=True)
     else:
         scores = json.loads("score.json")  # does not exists yet
         action_types = ["vertical_skewer_0",
@@ -59,4 +59,4 @@ if __name__ == '__main__':
         purge_all_markers_per_update=True)
 
     print("run detection")
-    run_detection(conf.node_title, conf.frequency, perception_module)
+    run_detection(conf.node_name, conf.frequency, perception_module)
