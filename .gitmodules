@@ -5,4 +5,3 @@
 [submodule "external/bite_selection_package"]
 	path = external/bite_selection_package
 	url = https://github.com/personalrobotics/bite_selection_package.git
-	branch = ada

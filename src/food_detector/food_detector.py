@@ -28,7 +28,7 @@ external_path = os.path.join(
 sys.path.append(external_path)
 
 from bite_selection_package.model.spnet import SPNet, DenseSPNet
-from bite_selection_package.spnet_config import config as spnet_config
+from bite_selection_package.config import food_detector_config as spnet_config
 
 from retinanet_detector import RetinaNetDetector
 
