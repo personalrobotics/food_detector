@@ -108,14 +108,14 @@ class FoodDetector(PoseEstimator):
         for food in self.selector_food_names:
             self.detected_item_boxes[food] = dict()
 
-    def create_detected_item(self, rvec, tvec, t_class_name, box_id
+    def create_detected_item(self, rvec, tvec, t_class_name, box_id, 
                              db_key='food_item'):
         pose = quaternion_matrix(rvec)
         pose[:3, 3] = tvec
 
         return DetectedItem(
             frame_id=self.frame,
-            marker_namespace='{}_{}'.format(self.title, t_class_name),
+            marker_namespace=t_class_name,
             marker_id=box_id,
             db_key=db_key,
             pose=pose,
@@ -719,7 +719,7 @@ class FoodDetector(PoseEstimator):
                 tvec = np.array([tx, ty, tz])
 
                 detections.append(self.create_detected_item(
-                    rvec, tvec, t_class_name, t_class, class_box_id))
+                    rvec, tvec, t_class_name, class_box_id))
 
         # visualize detections
         fnt = ImageFont.truetype('Pillow/Tests/fonts/DejaVuSans.ttf', 12)
