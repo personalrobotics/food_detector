@@ -23,14 +23,14 @@ checkpoint = os.path.join(
     '../../external/pytorch_retinanet/checkpoint/food_ckpt.pth')
 label_map = os.path.join(
     os.path.dirname(__file__),
-    '../../external/bite_selection_package/data/food_label_map.pbtxt')
-spnet_checkpoint = os.path.join(
+    '../../external/bite_selection_package/data/food_general_label_map.pbtxt')
+spanet_checkpoint = os.path.join(
     os.path.dirname(__file__),
-    '../../external/bite_selection_package/checkpoint/spnet_ckpt.pth')
+    '../../external/bite_selection_package/checkpoint/spanet_ckpt.pth')
 
 pred_position = [0.5, 0.5]
 
-node_name = 'food_spnet_detector'
+node_name = 'food_spanet_detector'
 marker_ns = 'food_item'
 frequency = 20
 

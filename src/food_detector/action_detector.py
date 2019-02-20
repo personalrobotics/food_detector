@@ -1,22 +1,25 @@
 #!/usr/bin/env python
 
+import os
 import json
 import numpy as np
 import rospy
 from tf import TransformListener
+from sensor_msgs.msg import Image
+import torch
+import torchvision.transforms as transforms
 
 from deep_pose_estimators.pose_estimators import PoseEstimator
 from deep_pose_estimators.detected_item import DetectedItem
 from deep_pose_estimators.utils.ros_utils import get_transform_matrix
 from deep_pose_estimators.utils import CameraSubscriber
 
-from food_detector import ImagePublisher
-
-from bite_selection_package.model.spanet import SPANet, DenseSPANet
-from bite_selection_package.spanet_config import config as spanet_config
+from bite_selection_package.model.spanet import SPANet
+from bite_selection_package.config import spanet_config
 
 from retinanet_detector import RetinaNetDetector
-import ada_feeding_demo_config as conf
+from image_publisher import ImagePublisher
+import spa_demo_config as conf
 
 class ActionDetector(RetinaNetDetector):
     """
@@ -34,13 +37,17 @@ class ActionDetector(RetinaNetDetector):
             camera_tilt=1e-5,
             frame=conf.camera_tf)
 
-        self.score = json.loads(scores)
-        self.actions = self.action_types
+        #self.score = json.loads(scores)
+        #self.actions = ["vertical_skewer_0",
+        #                "vertical_tilted_skewer_0",
+        #                "vertical_angled_skewer_0"]
 
         self.listener = TransformListener()
-        self.detection_frame = detection_frame
-        self.destination_frame = destination_frame
-        self.timeout
+        self.detection_frame = conf.camera_tf
+        self.destination_frame = conf.destination_frame
+        self.timeout = 1.0
+
+        self.use_walldetector = False
 
         if self.use_walldetector:
             self.wall_detector = WallDetector()
@@ -52,8 +59,6 @@ class ActionDetector(RetinaNetDetector):
 
         self.agg_pc_data = list()
 
-        self.angle_res = spanet_config.angle_res
-        self.mask_size = spanet_config.mask_size
         self.use_densenet = spanet_config.use_densenet
         self.target_position = np.array([320, 240])
 
@@ -143,5 +148,8 @@ class ActionDetector(RetinaNetDetector):
             uv=((txmin + txmax) / 2.0, (tymin + tymax) / 2.0))
 
     def publish_spanet(self, sliced_img, identity, actuallyPublish=False):
-
+        # TODO
+        position = (0, 0)
+        angle = 0
+        action = "tilted_vertical"
         return position, angle, action

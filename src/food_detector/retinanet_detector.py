@@ -87,7 +87,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         """
         center_x = (txmin + txmax) / 2.0
         center_y = (tymin + tymax) / 2.0
-        return (center_x, center_y), angle=0.0, dict()
+        return (center_x, center_y), 0.0, dict()
 
     def find_closest_box_and_update(self, x, y, class_name, tolerance=40):
         """

@@ -1,6 +1,5 @@
 import rospy
 import os
-import json
 import argparse
 
 from visualization_msgs.msg import Marker
@@ -9,16 +8,16 @@ from deep_pose_estimators.run_perception_module import run_detection
 from deep_pose_estimators.perception_module import PerceptionModule
 from deep_pose_estimators.marker_manager import MarkerManager
 
-import ada_feeding_demo_config as conf
+import food_detector.ada_feeding_demo_config as conf
 from food_detector import FoodDetector
 from food_detector.retinanet_detector import RetinaNetDetector
-
+from food_detector import ActionDetector
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         "Run perception module for ada feeding projects")
     parser.add_argument(
-        "--demo-type", choices=['spnet', 'action-score', 'retinanet'],
+        "--demo-type", choices=['spnet', 'spanet', 'retinanet'],
         required=True)
     args = parser.parse_args()
 
@@ -30,16 +29,9 @@ if __name__ == '__main__':
         # TODO: shall we allow other options?
         rospy.init_node(conf.node_name)
         pose_estimator = FoodDetector(use_cuda=True)
-    else:
-        scores = json.loads("score.json")  # does not exists yet
-        action_types = ["vertical_skewer_0",
-                        "vertical_tilted_skewer_0",
-                        "vertical_angled_skewer_0"]
-        pose_estimator = ActionDetector(
-            scores, action_types, conf.checkpoint,
-            use_cuda=conf.use_cuda,
-            label_map_file=conf.label_map,
-            publisher_topic=conf.node_title)
+    elif args.demo_type == 'spanet':
+        rospy.init_node(conf.node_name)
+        pose_estimator = ActionDetector()
 
     if conf.use_cuda:
         os.environ['CUDA_VISIBLE_DEVICES'] = conf.gpus
