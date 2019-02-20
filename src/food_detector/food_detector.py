@@ -7,14 +7,14 @@ from __future__ import with_statement
 import numpy as np
 import os
 import sys
-import cv2
 import rospy
 import rospkg
 
-from tf.transformations import quaternion_matrix, quaternion_from_euler
 from scipy.special import softmax
-from sensor_msgs.msg import CompressedImage, Image, CameraInfo
-from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
+
+from PIL import Image as PILImage
+from PIL import ImageDraw
 
 import torch
 import torchvision.transforms as transforms
@@ -27,31 +27,25 @@ external_path = os.path.join(
     pkg_base, 'external')
 sys.path.append(external_path)
 
-from PIL import Image as PILImage
-from PIL import ImageDraw, ImageFont
-
-from pytorch_retinanet.model.retinanet import RetinaNet
-from pytorch_retinanet.retinanet_utils.encoder import DataEncoder
-
 from bite_selection_package.model.spnet import SPNet, DenseSPNet
 from bite_selection_package.spnet_config import config as spnet_config
 
-from deep_pose_estimators.pose_estimators import PoseEstimator
-from deep_pose_estimators.detected_item import DetectedItem
 from retinanet_detector import RetinaNetDetector
+
 
 # A pose estimator for detecting object and skewering pose
 # using SPNet
 class FoodDetector(RetinaNetDetector):
     def __init__(self, use_cuda=True):
-        RetinaNetDetector.__init__(self,
-                retinanet_checkpoint=conf.checkpoint,
-                use_cuda=use_cuda,
-                label_map_file=conf.label_map,
-                node_name=conf.node_name,
-                camera_to_table=conf.camera_to_table,
-                camera_tilt=1e-5,
-                frame=conf.camera_tf)
+        RetinaNetDetector.__init__(
+            self,
+            retinanet_checkpoint=conf.checkpoint,
+            use_cuda=use_cuda,
+            label_map_file=conf.label_map,
+            node_name=conf.node_name,
+            camera_to_table=conf.camera_to_table,
+            camera_tilt=1e-5,
+            frame=conf.camera_tf)
 
         self.agg_pc_data = list()
 
@@ -226,8 +220,10 @@ class FoodDetector(RetinaNetDetector):
                             rotation += 180
                     sp_angles.append(rotation)
                     # done = True
-                if done: break
-            if done: break
+                if done:
+                    break
+            if done:
+                break
 
         if actuallyPublish:
             msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
@@ -240,7 +236,8 @@ class FoodDetector(RetinaNetDetector):
         max_score_idx = np.argmax(sp_scores)
         return sp_poses[max_score_idx], sp_angles[max_score_idx]
 
-    def get_skewering_pose(self, txmin, txmax, tymin, tymax, width,
+    def get_skewering_pose(
+            self, txmin, txmax, tymin, tymax, width,
             height, img_msg, t_class_name):
         """
         @return skewering position and angle in the image.
@@ -249,4 +246,3 @@ class FoodDetector(RetinaNetDetector):
                               int(max(txmin, 0)):int(min(txmax, width))]
         sp_pose, sp_angle = self.publish_spnet(cropped_img, t_class_name, True)
         return sp_pose, sp_angle
-

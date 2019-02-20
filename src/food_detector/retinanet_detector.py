@@ -1,25 +1,23 @@
 #!/usr/bin/env python
 
-import json
 import numpy as np
 import rospy
-from tf import TransformListener
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
 import torch
 
 from deep_pose_estimators.pose_estimators import PoseEstimator
 from deep_pose_estimators.detected_item import DetectedItem
-from deep_pose_estimators.utils.ros_utils import get_transform_matrix
 from deep_pose_estimators.utils import CameraSubscriber
 from tf.transformations import quaternion_matrix, quaternion_from_euler
-from scipy.special import softmax
 
 from image_publisher import ImagePublisher
 from util import load_retinanet, load_label_map
 
+
 class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
-    def __init__(self,
+    def __init__(
+            self,
             retinanet_checkpoint,
             use_cuda,
             label_map_file,
@@ -31,10 +29,12 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             image_msg_type='compressed',
             depth_image_topic='/camera/aligned_depth_to_color/image_raw',
             camera_info_topic='/camera/color/camera_info',
-            detection_frame = "camera_color_optical_frame",
+            detection_frame='camera_color_optical_frame',
             timeout=1.0):
+
         PoseEstimator.__init__(self)
-        CameraSubscriber.__init__(self,
+        CameraSubscriber.__init__(
+            self,
             image_topic=image_topic,
             image_msg_type=image_msg_type,
             depth_image_topic=depth_image_topic,
@@ -42,7 +42,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             camera_info_topic=camera_info_topic)
         ImagePublisher.__init__(self, node_name)
 
-        self.retinanet, self.retinanet_transform, self.encoder = load_retinanet(use_cuda, retinanet_checkpoint)
+        self.retinanet, self.retinanet_transform, self.encoder = \
+            load_retinanet(use_cuda, retinanet_checkpoint)
         self.label_map = load_label_map(label_map_file)
 
         self.timeout = timeout
@@ -64,7 +65,6 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         for food in self.selector_food_names:
             self.detected_item_boxes[food] = dict()
 
-
     def create_detected_item(self, rvec, tvec, t_class_name, box_id,
                              db_key='food_item'):
         pose = quaternion_matrix(rvec)
@@ -80,7 +80,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
     # Inherited classes change this
     def get_skewering_pose(self, txmin, txmax, tymin, tymax, width, height,
-            img_msg, t_class_name):
+                           img_msg, t_class_name):
         """
         @return skewering position and angle in the image.
         """
@@ -114,7 +114,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     ids_to_delete.append(matched_id)
                 min_distance = distance
                 matched_id = bid
-                matched_position = (bx, by)
+                # matched_position = (bx, by)
 
         if ids_to_delete:
             print("Delete ", ids_to_delete)
@@ -126,7 +126,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         else:
             self.detected_item_boxes[class_name][largest_id + 1] = (x, y)
             matched_id = largest_id + 1
-            print("Adding a new box with id {} for {}".format(matched_id, class_name))
+            print("Adding a new box with id {} for {}".format(
+                matched_id, class_name))
 
         return matched_id
 
@@ -222,8 +223,10 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     t_class = self.get_index_of_class_name(t_class_name)
 
                 if (t_class_name == self.selector_food_names[self.selector_index]):
-                    txmin, tymin, txmax, tymax = boxes[box_idx].numpy() - bbox_offset
-                    if (txmin < 0 or tymin < 0 or txmax > width or tymax > height):
+                    txmin, tymin, txmax, tymax = \
+                        boxes[box_idx].numpy() - bbox_offset
+                    if (txmin < 0 or tymin < 0 or
+                            txmax > width or tymax > height):
                         continue
                     found = True
                     spBoxIdx = box_idx
@@ -301,13 +304,13 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     rvec, tvec, t_class_name, t_class, class_box_id))
 
                 chosen_boxes.append(boxes[box_idx])
-                chosen_labels.append("{}_{}".format(t_class_name, class_box_id))
+                chosen_labels.append(
+                    "{}_{}".format(t_class_name, class_box_id))
                 chosen_scores.append(scores[box_idx])
 
-        self.visualize_detections(img, chosen_boxes,
-            chosen_scores, chosen_labels, bbox_offset)
+        self.visualize_detections(
+            img, chosen_boxes, chosen_scores, chosen_labels, bbox_offset)
         return detections
-
 
     def visualize_detections(self, img, boxes, scores, labels, bbox_offset):
         # visualize detections
@@ -338,4 +341,3 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
         msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
         self.pub_img.publish(msg_img)
-
