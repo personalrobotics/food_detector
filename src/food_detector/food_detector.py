@@ -61,15 +61,15 @@ class FoodDetector(RetinaNetDetector):
         self.target_size = 136
 
         self.pub_img = rospy.Publisher(
-            '{}/detection_image'.format(self.publisher_topic),
+            '{}/detection_image'.format(self.node_name),
             Image,
             queue_size=2)
         self.pub_target_img = rospy.Publisher(
-            '{}/target_image'.format(self.publisher_topic),
+            '{}/target_image'.format(self.node_name),
             Image,
             queue_size=2)
         self.pub_spnet_img = rospy.Publisher(
-            '{}/spnet_image'.format(self.publisher_topic),
+            '{}/spnet_image'.format(self.node_name),
             Image,
             queue_size=2)
 
