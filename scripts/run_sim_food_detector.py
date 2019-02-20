@@ -17,7 +17,7 @@ if __name__ == "__main__":
     detection_frame = "camera_color_optical_frame"
     destination_frame = "map"
     # Change to Robot Base Link, e.g.:
-    #destination_frame = "j2n6s200_link_base"
+    # destination_frame = "j2n6s200_link_base"
 
     rospy.init_node("sim_food_detector")
 

@@ -27,6 +27,6 @@ spnet_checkpoint = os.path.join(
 
 pred_position = [0.5, 0.5]
 
-node_title = 'deep_pose'
+node_name = 'food_spnet_detector'
 marker_ns = 'food_item'
 frequency = 20
