@@ -66,7 +66,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             self.detected_item_boxes[food] = dict()
 
     def create_detected_item(self, rvec, tvec, t_class_name, box_id,
-                             db_key='food_item'):
+                             db_key='food_item', info_map=dict()):
         pose = quaternion_matrix(rvec)
         pose[:3, 3] = tvec
 
@@ -76,7 +76,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             marker_id=box_id,
             db_key=db_key,
             pose=pose,
-            detected_time=rospy.Time.now())
+            detected_time=rospy.Time.now(),
+            info_map=info_map)
 
     # Inherited classes change this
     def get_skewering_pose(self, txmin, txmax, tymin, tymax, width, height,
@@ -86,7 +87,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         """
         center_x = (txmin + txmax) / 2.0
         center_y = (tymin + tymax) / 2.0
-        return (center_x, center_y), 0.0
+        return (center_x, center_y), angle=0.0, dict()
 
     def find_closest_box_and_update(self, x, y, class_name, tolerance=40):
         """
@@ -256,7 +257,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             if (txmin < 0 or tymin < 0 or txmax > width or tymax > height):
                 continue
 
-            skewer_xy, skewer_angle = self.get_skewering_pose(
+            skewer_xy, skewer_angle, skewer_info = self.get_skewering_pose(
                     txmin, txmax, tymin, tymax, width, height,
                     copied_img_msg, t_class_name)
 
@@ -301,7 +302,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 tvec = np.array([tx, ty, tz])
 
                 detections.append(self.create_detected_item(
-                    rvec, tvec, t_class_name, t_class, class_box_id))
+                    rvec, tvec, t_class_name, t_class, class_box_id,
+                    info_map=skewer_info))
 
                 chosen_boxes.append(boxes[box_idx])
                 chosen_labels.append(

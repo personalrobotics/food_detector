@@ -10,62 +10,101 @@ from deep_pose_estimators.detected_item import DetectedItem
 from deep_pose_estimators.utils.ros_utils import get_transform_matrix
 from deep_pose_estimators.utils import CameraSubscriber
 
-from food_detector import ImagePublisher, WallDetector, WallClass
-from food_detector.util import load_retinanet, load_label_map
+from food_detector import ImagePublisher
 
-class ActionDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
+from bite_selection_package.model.spanet import SPANet, DenseSPANet
+from bite_selection_package.spanet_config import config as spanet_config
+
+from retinanet_detector import RetinaNetDetector
+import ada_feeding_demo_config as conf
+
+class ActionDetector(RetinaNetDetector):
     """
     Action detector returns particular action as the class of each object.
     """
 
-    def __init__(self, scores, action_types,
-            retinanet_checkpoint,
-            use_cuda,
-            label_map_file,
-            publisher_topic,
-            image_topic='/camera/color/image_raw/compressed',
-            image_msg_type='compressed',
-            depth_image_topic='/camera/aligned_depth_to_color/image_raw',
-            point_cloud_topic=None,
-            camera_info_topic='/camera/color/camera_info',
-            detection_frame = "camera_color_optical_frame",
-            destination_frame = "map",
-            timeout=1.0):
-        """
-        @param scores: food_class x pose (isolated vs wall) x action
-                            -> success rate
-        """
-        PoseEstimator.__init__(self)
-        CameraSubscriber.__init__(self, image_topic, image_msg_type,
-            image_compressed, depth_image_topic, point_cloud_topic,
-            camera_info_topic)
-        ImagePublisher.__init__(self, publisher_topic)
+    def __init__(self, use_cuda=True, use_walldetector=False):
+        RetinaNetDetector.__init__(
+            self,
+            retinanet_checkpoint=conf.checkpoint,
+            use_cuda=use_cuda,
+            label_map_file=conf.label_map,
+            node_name=conf.node_name,
+            camera_to_table=conf.camera_to_table,
+            camera_tilt=1e-5,
+            frame=conf.camera_tf)
 
         self.score = json.loads(scores)
         self.actions = self.action_types
-        self.retinanet, self.retinanet_transform, self.encoder =
-            load_retinanet(use_cuda, retinanet_checkpoint)
-        self.label_map = load_label_map(label_map_file)
 
         self.listener = TransformListener()
         self.detection_frame = detection_frame
         self.destination_frame = destination_frame
         self.timeout
 
-        # @Ethan This is the wall detector
-        self.wall_detector = WallDetector()
+        if self.use_walldetector:
+            self.wall_detector = WallDetector()
+            # TODO load scores map and actions
+            self.scores = dict()
+            self.actions = []
+        else:
+            self.wall_detector = None
+
+        self.agg_pc_data = list()
+
+        self.angle_res = spanet_config.angle_res
+        self.mask_size = spanet_config.mask_size
+        self.use_densenet = spanet_config.use_densenet
+        self.target_position = np.array([320, 240])
+
+        self.final_size = 512
+        self.target_size = 136
+
+        self.pub_img = rospy.Publisher(
+            '{}/detection_image'.format(self.node_name),
+            Image,
+            queue_size=2)
+        self.pub_target_img = rospy.Publisher(
+            '{}/target_image'.format(self.node_name),
+            Image,
+            queue_size=2)
+        self.pub_spanet_img = rospy.Publisher(
+            '{}/spanet_image'.format(self.node_name),
+            Image,
+            queue_size=2)
+
+        self.init_spanet()
+
+    def init_spanet(self):
+        if self.use_densenet:
+            self.spanet = DenseSPANet()
+        else:
+            self.spanet = SPANet()
+        print('Loaded {}SPANet'.format('Dense' if self.use_densenet else ''))
+
+        if self.use_cuda:
+            ckpt = torch.load(
+                os.path.expanduser(conf.spanet_checkpoint))
+        else:
+            ckpt = torch.load(
+                os.path.expanduser(conf.spanet_checkpoint),
+                map_location='cpu')
+
+        self.spanet.load_state_dict(ckpt['net'])
+        self.spanet.eval()
+        if self.use_cuda:
+            self.spanet = self.spanet.cuda()
+
+        self.spanet_transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
 
     def detect_objects(self):
-        if self.img_msg is None:
-            print('no input stream')
-            return list()
+        # Get DetectedItems using SPANet
+        detected_items = RetinaNetDetector.detect_objects(self)
 
-        if self.depth_img_msg is None:
-            print('no input depth stream')
-            self.depth_img_msg = np.ones(self.img_msg.shape[:2])
-
-        # @Youngsun Get all bounding boxes and food classes
-        detected_items = [] # List of (DetectedItem, image (u,v) of center of each item)
+        if self.wall_detector is None:
+            return detected_items
 
         # Get the transform from destination to detection frame
         camera_transform = get_transform_matrix(self.listener,
@@ -74,11 +113,10 @@ class ActionDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             self.timeout)
 
         # Register all UV Points in wall detector
-        for _, uv in detected_items:
-            self.wall_detector.register_uv(uv)
+        for item in detected_items:
+            self.wall_detector.register_uv(item.info_map['uv'])
 
-        for item, uv in detected_items:
-            # @Ethan this is where the wall detector gets called
+        for item in detected_items:
             wall_type = self.wall_detector.classify(uv, self.img_msg, self.depth_img_msg)
 
             scores = [self.score[item.namespace][wall_type][action]
@@ -89,4 +127,21 @@ class ActionDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             item.info_map["best_action"] = best_action
             item.info_map["best_action_score"] = score
 
-        return [item for item, uv in detected_items]
+        return item
+
+    def get_skewering_pose(
+            self, txmin, txmax, tymin, tymax, width,
+            height, img_msg, t_class_name):
+        """
+        @return skewering position and angle in the image.
+        """
+        cropped_img = img_msg[int(max(tymin, 0)):int(min(tymax, height)),
+                              int(max(txmin, 0)):int(min(txmax, width))]
+        position, angle, action = self.publish_spanet(cropped_img, t_class_name, True)
+
+        return position, angle, dict(action=action,
+            uv=((txmin + txmax) / 2.0, (tymin + tymax) / 2.0))
+
+    def publish_spanet(self, sliced_img, identity, actuallyPublish=False):
+
+        return position, angle, action
