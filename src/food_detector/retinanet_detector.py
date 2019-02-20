@@ -79,7 +79,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             pose=pose,
             detected_time=rospy.Time.now())
 
-    # TODO: SPNet changes this.
+    # Inherited classes change this
     def get_skewering_pose(self, txmin, txmax, tymin, tymax, width, height,
             img_msg, t_class_name):
         """
