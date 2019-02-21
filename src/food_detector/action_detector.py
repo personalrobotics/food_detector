@@ -21,6 +21,8 @@ from retinanet_detector import RetinaNetDetector
 from image_publisher import ImagePublisher
 import spa_demo_config as conf
 
+ACTIONS = ['vertical', 'tilted-vertical', 'tilted-angled']
+
 class ActionDetector(RetinaNetDetector):
     """
     Action detector returns particular action as the class of each object.
@@ -148,8 +150,27 @@ class ActionDetector(RetinaNetDetector):
             uv=((txmin + txmax) / 2.0, (tymin + tymax) / 2.0))
 
     def publish_spanet(self, sliced_img, identity, actuallyPublish=False):
-        # TODO
-        position = (0, 0)
-        angle = 0
-        action = "tilted_vertical"
-        return position, angle, action
+
+        pred_vector, _ = self.spanet(img)
+
+        pred_vector = pred_vector.cpu().detach().numpy()
+
+        # pred_vector: [p1_row, p1_col, p2_row, p2_col, a1_success_rate, ..., a6_suceess_rate]
+        p1 = pred_vector[:2]
+        p2 = pred_vector[2:4]
+
+        point = np.mean(p1, p2)
+        angle = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
+
+        success_rates = pred_vector[4:]
+        action_idx = np.argmax(success_rates)
+
+        if (action_idx % 2 == 0):
+            angle = 0
+        else:
+            angle = 90
+
+        action_name = ACTIONS[action_idx // 2)
+
+        return position, angle, action_name
+
