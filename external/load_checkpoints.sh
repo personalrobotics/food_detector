@@ -6,8 +6,12 @@ scp -r prl@mthrbrn.personalrobotics.cs.washington.edu:/mnt/hard_data/GitHub/bite
 
 echo "load retinanet from mthrbrn"
 mkdir -p ./pytorch_retinanet/checkpoint
+mkdir -p ./pytorch_retinanet/pretrained
 scp -r prl@mthrbrn.personalrobotics.cs.washington.edu:/mnt/hard_data/GitHub/pytorch-retinanet-foods/checkpoint/food_ckpt.pth ./pytorch_retinanet/checkpoint/
 scp -r prl@mthrbrn.personalrobotics.cs.washington.edu:/mnt/hard_data/GitHub/pytorch-retinanet-foods/pretrained/food_net.pth ./pytorch_retinanet/pretrained/
+
+echo "load bite_selection_package data"
+. ./bite_selection_package/data/load_data.sh
 
 # Laura's model (baseline for spnet)
 #  echo "load model1 from mthrbrn"

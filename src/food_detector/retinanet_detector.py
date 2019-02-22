@@ -24,7 +24,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             camera_tilt,
             camera_to_table,
             frame,
-            node_name,
+            node_name=rospy.get_name(),
             image_topic='/camera/color/image_raw/compressed',
             image_msg_type='compressed',
             depth_image_topic='/camera/aligned_depth_to_color/image_raw',

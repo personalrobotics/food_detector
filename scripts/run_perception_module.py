@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import rospy
 import os
 import argparse
@@ -18,16 +19,16 @@ if __name__ == '__main__':
     parser.add_argument(
         "--demo-type", choices=['spnet', 'action-score', 'retinanet'],
         required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(rospy.myargv()[1:])
 
     if args.demo_type == 'retinanet':
         # TODO
-        pose_estimator = RetinaNetDetector()
+        pose_estimator = RetinaNetDetector(node_name=rospy.get_name())
     elif args.demo_type == "spnet":
         import food_detector.ada_feeding_demo_config as conf
         # TODO: shall we allow other options?
         rospy.init_node(conf.node_name)
-        pose_estimator = FoodDetector(use_cuda=True)
+        pose_estimator = FoodDetector(use_cuda=True, node_name=rospy.get_name())
     else:
         raise NotImplementedError
 
@@ -48,4 +49,4 @@ if __name__ == '__main__':
         purge_all_markers_per_update=True)
 
     print("run detection")
-    run_detection(conf.node_name, conf.frequency, perception_module)
+    run_detection(rospy.get_name(), conf.frequency, perception_module)
