@@ -27,11 +27,6 @@ if __name__ == '__main__':
         raise NotImplementedError
     elif args.demo_type == "spnet":
         rospy.init_node('food_detector')
-
-        # When the script is called by a launch file, the node name is
-        # overridden by launch node name. This asserts
-        # that the two names match.
-        assert(rospy.get_name() == '/food_detector')
         pose_estimator = FoodDetector(use_cuda=True, node_name=rospy.get_name())
     else:
         raise NotImplementedError
