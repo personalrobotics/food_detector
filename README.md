@@ -1,17 +1,7 @@
 # Food Detector
 
-### Initializing submodules and loading checkpoints
-```
-$ git submodule update --init --recursive
-$ cd external
-$ ./load_checkpoints.sh
-$ cd -
-```
+## Dependencies
 
-### Download additional files
-```
-$ cd external/bite_selection_package/data
-$ ./load_data.sh
-$ cd -
-```
+* https://github.com/personalrobotics/pytorch_retinanet
+* https://github.com/personalrobotics/bite_selection_package
 
