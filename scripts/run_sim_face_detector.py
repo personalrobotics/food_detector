@@ -4,7 +4,7 @@ from deep_pose_estimators.perception_module import PerceptionModule
 from deep_pose_estimators.marker_manager import MarkerManager
 from deep_pose_estimators.run_perception_module import run_detection
 
-from food_detector import SimFaceDetector
+from food_detector.sim_face_detector import SimFaceDetector
 import rospy
 
 
@@ -15,8 +15,7 @@ import rospy
 # You should be able to see marker array in rviz under topic /simulated_pose/marker_array
 
 if __name__ == "__main__":
-    detection_frame = "camera_color_optical_frame"
-    destination_frame = "map"
+    detection_frame = "map"
     # Change to Robot Base Link, e.g.:
     destination_frame = "j2n6s200_link_base"
 

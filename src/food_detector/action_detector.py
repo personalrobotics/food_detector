@@ -170,7 +170,7 @@ class ActionDetector(RetinaNetDetector):
         else:
             angle = 90
 
-        action_name = ACTIONS[action_idx // 2)
+        action_name = ACTIONS[action_idx // 2]
 
         return position, angle, action_name
 
