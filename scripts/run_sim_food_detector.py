@@ -11,9 +11,9 @@ import rospy
 # This script runs a sim food detector which publishes markers for food items
 # on the plate.
 
-# Run in command line a static transform between map to detection frame
-# rosrun tf static_transform_publisher 0.0 0.0 0.0 0.0 0.0 0.0 1.0 map detection_frame 1000
-# You should be able to see marker array in rviz under topic /simulated_pose/marker_array
+# When running without a robot, publish a static transform between map and another frame
+# rosrun tf static_transform_publisher 0.0 0.0 0.0 0.0 0.0 0.0 1.0 map base_frame 1000
+# You should be able to see marker array in rviz under topic /food_detector/marker_array
 if __name__ == "__main__":
     detection_frame = "map"
     destination_frame = "map"
