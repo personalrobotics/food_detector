@@ -24,14 +24,11 @@ if __name__ == '__main__':
     if args.demo_type == 'retinanet':
         # TODO
         pose_estimator = RetinaNetDetector(node_name=rospy.get_name())
+        raise NotImplementedError
     elif args.demo_type == "spnet":
-
-        # TODO: shall we allow other options?
         rospy.init_node('food_detector')
 
-        print("Node name", rospy.get_name(), rospy.get_namespace())
-
-        # When the script is called by a launch file, the name is
+        # When the script is called by a launch file, the node name is
         # overridden by launch node name. This asserts
         # that the two names match.
         assert(rospy.get_name() == '/food_detector')
@@ -55,5 +52,4 @@ if __name__ == '__main__':
         destination_frame="map",
         purge_all_markers_per_update=True)
 
-    print("run detection")
     run_detection(rospy.get_name(), conf.frequency, perception_module)
