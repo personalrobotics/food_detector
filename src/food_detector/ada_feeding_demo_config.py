@@ -17,7 +17,7 @@ camera_info_topic = '/camera/color/camera_info'
 camera_to_table = 0.335
 camera_tilt = 1e-8
 
-num_classes = 6  # should match the trained model
+num_classes = 15  # should match the trained model
 checkpoint = os.path.join(
     os.path.dirname(__file__),
     '../../external/pytorch_retinanet/checkpoint/food_ckpt.pth')
@@ -30,6 +30,5 @@ spnet_checkpoint = os.path.join(
 
 pred_position = [0.5, 0.5]
 
-node_name = 'food_spnet_detector'
 marker_ns = 'food_item'
 frequency = 20

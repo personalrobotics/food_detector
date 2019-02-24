@@ -11,7 +11,7 @@ from pose_estimators.marker_manager import MarkerManager
 
 from food_detector import FoodDetector
 from food_detector.retinanet_detector import RetinaNetDetector
-
+import food_detector.ada_feeding_demo_config as conf
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -25,9 +25,16 @@ if __name__ == '__main__':
         # TODO
         pose_estimator = RetinaNetDetector(node_name=rospy.get_name())
     elif args.demo_type == "spnet":
-        import food_detector.ada_feeding_demo_config as conf
+
         # TODO: shall we allow other options?
-        rospy.init_node(conf.node_name)
+        rospy.init_node('food_detector')
+
+        print("Node name", rospy.get_name(), rospy.get_namespace())
+
+        # When the script is called by a launch file, the name is
+        # overridden by launch node name. This asserts
+        # that the two names match.
+        assert(rospy.get_name() == '/food_detector')
         pose_estimator = FoodDetector(use_cuda=True, node_name=rospy.get_name())
     else:
         raise NotImplementedError
