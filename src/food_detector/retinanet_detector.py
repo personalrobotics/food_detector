@@ -6,9 +6,9 @@ from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
 import torch
 
-from deep_pose_estimators.pose_estimators import PoseEstimator
-from deep_pose_estimators.detected_item import DetectedItem
-from deep_pose_estimators.utils import CameraSubscriber
+from pose_estimators.pose_estimator import PoseEstimator
+from pose_estimators.detected_item import DetectedItem
+from pose_estimators.utils import CameraSubscriber
 from tf.transformations import quaternion_matrix, quaternion_from_euler
 
 from image_publisher import ImagePublisher
