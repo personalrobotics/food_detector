@@ -15,4 +15,4 @@ echo "load bite_selection_package data"
 
 # Laura's model (baseline for spnet)
 #  echo "load model1 from mthrbrn"
-#  scp -r prl@mthrbrn.personalrobotics.cs.washington.edu:/mnt/hard_data/catkin_ws/src/deep_pose_estimators/src/deep_pose_estimators/external/laura_model1/checkpoint ./laura_model1
+#  scp -r prl@mthrbrn.personalrobotics.cs.washington.edu:/mnt/hard_data/catkin_ws/src/pose_estimators/src/pose_estimators/external/laura_model1/checkpoint ./laura_model1
