@@ -2,7 +2,7 @@ import torch
 import os
 from scipy.special import softmax
 from pytorch_retinanet.model.retinanet import RetinaNet
-from pytorch_retinanet.retinanet_utils.encoder import DataEncoder
+from pytorch_retinanet.utils.encoder import DataEncoder
 import torchvision.transforms as transforms
 
 

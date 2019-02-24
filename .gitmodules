@@ -1,7 +1,0 @@
-[submodule "external/pytorch_retinanet"]
-	path = external/pytorch_retinanet
-	url = https://github.com/personalrobotics/pytorch_retinanet.git
-	branch = ada
-[submodule "external/bite_selection_package"]
-	path = external/bite_selection_package
-	url = https://github.com/personalrobotics/bite_selection_package.git

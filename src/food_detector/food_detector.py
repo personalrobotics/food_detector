@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python2
 
 from __future__ import print_function
 from __future__ import division
@@ -28,7 +28,7 @@ external_path = os.path.join(
 sys.path.append(external_path)
 
 from bite_selection_package.model.spnet import SPNet, DenseSPNet
-from bite_selection_package.config import food_detector_config as spnet_config
+from bite_selection_package.config import spnet_config
 
 from retinanet_detector import RetinaNetDetector
 
@@ -36,13 +36,13 @@ from retinanet_detector import RetinaNetDetector
 # A pose estimator for detecting object and skewering pose
 # using SPNet
 class FoodDetector(RetinaNetDetector):
-    def __init__(self, use_cuda=True):
+    def __init__(self, node_name, use_cuda=True):
         RetinaNetDetector.__init__(
             self,
             retinanet_checkpoint=conf.checkpoint,
             use_cuda=use_cuda,
             label_map_file=conf.label_map,
-            node_name=conf.node_name,
+            node_name=node_name,
             camera_to_table=conf.camera_to_table,
             camera_tilt=1e-5,
             frame=conf.camera_tf)

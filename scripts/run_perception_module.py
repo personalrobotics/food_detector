@@ -1,17 +1,18 @@
+#!/usr/bin/python
 import rospy
 import os
 import argparse
 
 from visualization_msgs.msg import Marker
 
-from deep_pose_estimators.run_perception_module import run_detection
-from deep_pose_estimators.perception_module import PerceptionModule
-from deep_pose_estimators.marker_manager import MarkerManager
+from pose_estimators.run_perception_module import run_detection
+from pose_estimators.perception_module import PerceptionModule
+from pose_estimators.marker_manager import MarkerManager
 
 import food_detector.ada_feeding_demo_config as conf
 from food_detector import FoodDetector
 from food_detector.retinanet_detector import RetinaNetDetector
-from food_detector import ActionDetector
+from food_detector.action_detector import ActionDetector
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -19,19 +20,20 @@ if __name__ == '__main__':
     parser.add_argument(
         "--demo-type", choices=['spnet', 'spanet', 'retinanet'],
         required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(rospy.myargv()[1:])
+
+    rospy.init_node('food_detector')
 
     if args.demo_type == 'retinanet':
         # TODO
-        pose_estimator = RetinaNetDetector()
+        pose_estimator = RetinaNetDetector(node_name=rospy.get_name())
+        raise NotImplementedError
     elif args.demo_type == "spnet":
-        import food_detector.ada_feeding_demo_config as conf
-        # TODO: shall we allow other options?
-        rospy.init_node(conf.node_name)
-        pose_estimator = FoodDetector(use_cuda=True)
+        pose_estimator = FoodDetector(use_cuda=True, node_name=rospy.get_name())
     elif args.demo_type == 'spanet':
-        rospy.init_node(conf.node_name)
         pose_estimator = ActionDetector()
+    else:
+        raise NotImplementedError
 
     if conf.use_cuda:
         os.environ['CUDA_VISIBLE_DEVICES'] = conf.gpus
@@ -50,5 +52,4 @@ if __name__ == '__main__':
         destination_frame="map",
         purge_all_markers_per_update=True)
 
-    print("run detection")
-    run_detection(conf.node_name, conf.frequency, perception_module)
+    run_detection(rospy.get_name(), conf.frequency, perception_module)

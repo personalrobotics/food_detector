@@ -6,9 +6,9 @@ from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
 import torch
 
-from deep_pose_estimators.pose_estimators import PoseEstimator
-from deep_pose_estimators.detected_item import DetectedItem
-from deep_pose_estimators.utils import CameraSubscriber
+from pose_estimators.pose_estimator import PoseEstimator
+from pose_estimators.detected_item import DetectedItem
+from pose_estimators.utils import CameraSubscriber
 from tf.transformations import quaternion_matrix, quaternion_from_euler
 
 from image_publisher import ImagePublisher
@@ -24,7 +24,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             camera_tilt,
             camera_to_table,
             frame,
-            node_name,
+            node_name=rospy.get_name(),
             image_topic='/camera/color/image_raw/compressed',
             image_msg_type='compressed',
             depth_image_topic='/camera/aligned_depth_to_color/image_raw',
@@ -263,7 +263,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
             if not skewer_xy:
                 self.visualize_detections(img, [], [], [], bbox_offset)
-                return list()
+                continue
 
             class_box_id = self.find_closest_box_and_update(
                     (txmin + txmax) / 2.0, (tymin + tymax) / 2.0, t_class_name)
@@ -302,8 +302,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 tvec = np.array([tx, ty, tz])
 
                 detections.append(self.create_detected_item(
-                    rvec, tvec, t_class_name, t_class, class_box_id,
-                    info_map=skewer_info))
+                    rvec, tvec, t_class_name, class_box_id, info_map=skewer_info))
 
                 chosen_boxes.append(boxes[box_idx])
                 chosen_labels.append(
