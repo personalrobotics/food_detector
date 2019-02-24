@@ -7,7 +7,6 @@ rospack = rospkg.RosPack()
 retinanet_base = rospack.get_path('pytorch_retinanet')
 biteselection_base = rospack.get_path('bite_selection_package')
 
-print ('retinanet',retinanet_base)
 gpus = '0'
 use_cuda = True
 
