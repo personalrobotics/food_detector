@@ -10,7 +10,9 @@ d = generate_distutils_setup(
     package_dir={'': 'src'},
     install_requires=[
         'scipy>=1.2.1',
-        'pose_estimators'
+        'pose_estimators',
+        'pytorch_retinanet',
+        'bite_selection_package'
     ]
 )
 setup(**d)
