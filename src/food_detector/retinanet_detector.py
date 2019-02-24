@@ -262,7 +262,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
             if not skewer_xy:
                 self.visualize_detections(img, [], [], [], bbox_offset)
-                return list()
+                continue
 
             class_box_id = self.find_closest_box_and_update(
                     (txmin + txmax) / 2.0, (tymin + tymax) / 2.0, t_class_name)
@@ -301,7 +301,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 tvec = np.array([tx, ty, tz])
 
                 detections.append(self.create_detected_item(
-                    rvec, tvec, t_class_name, t_class, class_box_id))
+                    rvec, tvec, t_class_name, class_box_id))
 
                 chosen_boxes.append(boxes[box_idx])
                 chosen_labels.append(
