@@ -9,10 +9,10 @@ from sensor_msgs.msg import Image
 import torch
 import torchvision.transforms as transforms
 
-from deep_pose_estimators.pose_estimators import PoseEstimator
-from deep_pose_estimators.detected_item import DetectedItem
-from deep_pose_estimators.utils.ros_utils import get_transform_matrix
-from deep_pose_estimators.utils import CameraSubscriber
+from pose_estimators.pose_estimators import PoseEstimator
+from pose_estimators.detected_item import DetectedItem
+from pose_estimators.utils.ros_utils import get_transform_matrix
+from pose_estimators.utils import CameraSubscriber
 
 from bite_selection_package.model.spanet import SPANet
 from bite_selection_package.config import spanet_config
