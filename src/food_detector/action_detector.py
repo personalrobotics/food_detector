@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import division
 
 import os
 import json
@@ -9,12 +10,15 @@ from sensor_msgs.msg import Image
 import torch
 import torchvision.transforms as transforms
 
-from pose_estimators.pose_estimators import PoseEstimator
+from PIL import Image as PILImage
+
+from pose_estimators.pose_estimator import PoseEstimator
 from pose_estimators.detected_item import DetectedItem
 from pose_estimators.utils.ros_utils import get_transform_matrix
 from pose_estimators.utils import CameraSubscriber
 
 from bite_selection_package.model.spanet import SPANet
+from bite_selection_package.model.spanet import DenseSPANet
 from bite_selection_package.config import spanet_config
 
 from retinanet_detector import RetinaNetDetector
@@ -65,7 +69,7 @@ class ActionDetector(RetinaNetDetector):
         self.target_position = np.array([320, 240])
 
         self.final_size = 512
-        self.target_size = 136
+        self.target_size = 144
 
         self.pub_img = rospy.Publisher(
             '{}/detection_image'.format(self.node_name),
@@ -144,22 +148,34 @@ class ActionDetector(RetinaNetDetector):
         """
         cropped_img = img_msg[int(max(tymin, 0)):int(min(tymax, height)),
                               int(max(txmin, 0)):int(min(txmax, width))]
+        for dim in cropped_img.shape:
+            if dim == 0:
+                return None, None, None
         position, angle, action = self.publish_spanet(cropped_img, t_class_name, True)
 
         return position, angle, dict(action=action,
             uv=((txmin + txmax) / 2.0, (tymin + tymax) / 2.0))
 
     def publish_spanet(self, sliced_img, identity, actuallyPublish=False):
+        img_org = PILImage.fromarray(sliced_img.copy())
+        ratio = float(self.target_size / max(img_org.size))
+        new_size = tuple([int(x * ratio) for x in img_org.size])
+        pads = [(self.target_size - new_size[0]) // 2,
+                (self.target_size - new_size[1]) // 2]
+        img_org = img_org.resize(new_size, PILImage.ANTIALIAS)
+        img = PILImage.new('RGB', (self.target_size, self.target_size))
+        img.paste(img_org, pads)
+        transform = transforms.Compose([transforms.ToTensor()])
+        pred_vector, _ = self.spanet(
+            torch.stack([transform(img)]), None)
 
-        pred_vector, _ = self.spanet(img)
-
-        pred_vector = pred_vector.cpu().detach().numpy()
+        pred_vector = pred_vector.cpu().detach().numpy().flatten()
 
         # pred_vector: [p1_row, p1_col, p2_row, p2_col, a1_success_rate, ..., a6_suceess_rate]
         p1 = pred_vector[:2]
         p2 = pred_vector[2:4]
 
-        point = np.mean(p1, p2)
+        position = np.divide(p1 + p2, 2.0)
         angle = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
 
         success_rates = pred_vector[4:]

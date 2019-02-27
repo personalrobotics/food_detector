@@ -261,7 +261,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     txmin, txmax, tymin, tymax, width, height,
                     copied_img_msg, t_class_name)
 
-            if not skewer_xy:
+            if len(skewer_xy) < 2:
                 self.visualize_detections(img, [], [], [], bbox_offset)
                 continue
 

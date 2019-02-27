@@ -29,14 +29,15 @@ if __name__ == '__main__':
         pose_estimator = RetinaNetDetector(node_name=rospy.get_name())
         raise NotImplementedError
     elif args.demo_type == "spnet":
-        pose_estimator = FoodDetector(use_cuda=True, node_name=rospy.get_name())
+        pose_estimator = FoodDetector(use_cuda=conf.use_cuda, node_name=rospy.get_name())
     elif args.demo_type == 'spanet':
-        pose_estimator = ActionDetector()
+        pose_estimator = ActionDetector(use_cuda = conf.use_cuda)
     else:
         raise NotImplementedError
 
     if conf.use_cuda:
         os.environ['CUDA_VISIBLE_DEVICES'] = conf.gpus
+        print("Using CUDA!")
 
     marker_manager = MarkerManager(
         marker_type=Marker.CUBE,

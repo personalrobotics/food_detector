@@ -1,8 +1,8 @@
 # Example script for running a perception module
 
-from deep_pose_estimators.perception_module import PerceptionModule
-from deep_pose_estimators.marker_manager import MarkerManager
-from deep_pose_estimators.run_perception_module import run_detection
+from pose_estimators.perception_module import PerceptionModule
+from pose_estimators.marker_manager import MarkerManager
+from pose_estimators.run_perception_module import run_detection
 
 from food_detector.sim_face_detector import SimFaceDetector
 import rospy

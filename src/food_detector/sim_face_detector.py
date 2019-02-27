@@ -2,8 +2,8 @@
 
 import rospy
 import numpy as np
-from deep_pose_estimators.pose_estimators import PoseEstimator
-from deep_pose_estimators.detected_item import DetectedItem
+from pose_estimators.pose_estimator import PoseEstimator
+from pose_estimators.detected_item import DetectedItem
 
 class SimFaceDetector(PoseEstimator):
     def __init__(self, frame_id):
