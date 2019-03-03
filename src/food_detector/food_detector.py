@@ -176,11 +176,6 @@ class FoodDetector(RetinaNetDetector):
                 rotation = rmask[ri][ci]
                 score = bmask[ri][ci]
                 if rotation >= -1:
-                    if rotation_mode == 'alt':
-                        cp = self.mask_size / 2
-                        rotation = -np.degrees(
-                            np.arctan2(ri - cp, ci - cp))
-
                     rotation = -rotation
                     ix = ci * self.final_size / self.mask_size
                     iy = ri * self.final_size / self.mask_size
@@ -242,7 +237,13 @@ class FoodDetector(RetinaNetDetector):
         """
         @return skewering position and angle in the image.
         """
+        """
+        # Temporarily disabled SPNet for demo.
         cropped_img = img_msg[int(max(tymin, 0)):int(min(tymax, height)),
                               int(max(txmin, 0)):int(min(txmax, width))]
+
         sp_pose, sp_angle = self.publish_spnet(cropped_img, t_class_name, True)
         return sp_pose, sp_angle
+        """
+
+        return [0.5, 0.2], 0.0
