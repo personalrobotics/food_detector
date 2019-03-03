@@ -34,4 +34,3 @@ frequency = 20
 
 # Used for wall detector
 destination_frame = 'j2n6s200_link_base'
-
