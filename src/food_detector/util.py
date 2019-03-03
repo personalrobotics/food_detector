@@ -1,6 +1,5 @@
 import torch
 import os
-from scipy.special import softmax
 from pytorch_retinanet.model.retinanet import RetinaNet
 from pytorch_retinanet.utils.encoder import DataEncoder
 import torchvision.transforms as transforms
@@ -49,4 +48,3 @@ def load_label_map(label_map):
         label_dict[item_id] = item_name
 
     return label_dict
-
