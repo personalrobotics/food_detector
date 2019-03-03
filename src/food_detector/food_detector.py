@@ -39,10 +39,10 @@ class FoodDetector(RetinaNetDetector):
     def __init__(self, node_name, use_cuda=True):
         RetinaNetDetector.__init__(
             self,
-            retinanet_checkpoint=conf.checkpoint,
-            use_cuda=use_cuda,
-            label_map_file=conf.label_map,
             node_name=node_name,
+            use_cuda=use_cuda,
+            retinanet_checkpoint=conf.checkpoint,
+            label_map_file=conf.label_map,
             camera_to_table=conf.camera_to_table,
             camera_tilt=1e-5,
             frame=conf.camera_tf)
@@ -60,14 +60,6 @@ class FoodDetector(RetinaNetDetector):
         self.final_size = 512
         self.target_size = 136
 
-        self.pub_img = rospy.Publisher(
-            '{}/detection_image'.format(self.node_name),
-            Image,
-            queue_size=2)
-        self.pub_target_img = rospy.Publisher(
-            '{}/target_image'.format(self.node_name),
-            Image,
-            queue_size=2)
         self.pub_spnet_img = rospy.Publisher(
             '{}/spnet_image'.format(self.node_name),
             Image,
@@ -237,13 +229,9 @@ class FoodDetector(RetinaNetDetector):
         """
         @return skewering position and angle in the image.
         """
-        """
-        # Temporarily disabled SPNet for demo.
         cropped_img = img_msg[int(max(tymin, 0)):int(min(tymax, height)),
                               int(max(txmin, 0)):int(min(txmax, width))]
 
         sp_pose, sp_angle = self.publish_spnet(cropped_img, t_class_name, True)
         return sp_pose, sp_angle
-        """
 
-        return [0.5, 0.2], 0.0
