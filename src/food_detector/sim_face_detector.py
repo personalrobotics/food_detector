@@ -9,9 +9,9 @@ class SimFaceDetector(PoseEstimator):
     def __init__(self, frame_id):
 
         personPose = np.array([
-            [1, 0, 0, 0.274968],
-            [0, 1, 0, 0.350025],
-            [0, 0, 1, 0.752],
+            [0, 1, 0, 0.275],
+            [-1, 0, 0, 0.35],
+            [0, 0, 1, 0.75],
             [0, 0, 0, 1]])
 
         self.item = DetectedItem(
