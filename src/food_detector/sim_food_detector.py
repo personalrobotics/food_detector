@@ -10,9 +10,9 @@ class SimFoodDetector(PoseEstimator):
     def __init__(self, frame_id):
 
         # Pose at which the food is on the plate
-        pose1 = np.array([[-1, 0, 0, 0.30],
+        pose1 = np.array([[1, 0, 0, 0.30],
                           [0, 1, 0, -0.25],
-                          [0, 0, -1, 0.25],
+                          [0, 0, 1, 0.25],
                           [0, 0, 0, 1]])
         self.item1 = DetectedItem(
             frame_id=frame_id,
@@ -23,9 +23,9 @@ class SimFoodDetector(PoseEstimator):
             detected_time=rospy.Time.now())
 
         # Pose at which the food is on the plate
-        pose2 = np.array([[-1, 0, 0, 0.25],
+        pose2 = np.array([[1, 0, 0, 0.25],
                           [0, 1, 0, -0.29],
-                          [0, 0, -1, 0.25],
+                          [0, 0, 1, 0.25],
                           [0, 0, 0, 1]])
         self.item2 = DetectedItem(
             frame_id=frame_id,

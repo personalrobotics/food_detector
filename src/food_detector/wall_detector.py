@@ -5,10 +5,10 @@ import numpy as np
 import math
 
 class WallClass(Enum):
-	kUNKNOWN 	= 0
-	kISOLATED 	= 1
-	kNEAR_OBJ 	= 2
-	kON_OBJ 	= 3
+    kUNKNOWN    = 0
+    kISOLATED   = 1
+    kNEAR_OBJ   = 2
+    kON_OBJ     = 3
 
 
 # Pseudocode for API
@@ -116,7 +116,7 @@ class WallDetector:
         """
 
         # Detect Largest Circle (Plate)
-        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, self._hough_accum, self._hough_min_dist, 
+        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, self._hough_accum, self._hough_min_dist,
             param1=self._hough_param1, param2=self._hough_param2, minRadius=self._hough_min, maxRadius=self._hough_max)
         circles = np.round(circles[0, :]).astype("int")
         plate_uv = (0, 0)
@@ -208,7 +208,7 @@ class WallDetector:
                 color_end.append(color_begin[i] + int(self._color_range/2))
         color_end = np.array(color_end,np.uint8)
         color_begin = np.array(color_begin,np.uint8)
-        
+
         # Prevent going under 255
         for i in range(0,len(color_begin)):
             if color_begin[i] - self._color_range/2 < 0:
@@ -217,13 +217,13 @@ class WallDetector:
                 color_begin[i] = color_begin[i] - int(self._color_range/2)
 
         # Get subregion of image
-        rect = (uv[0]-self._sub_width/2, 
-            uv[1]-self._sub_width/2, 
-            self._sub_width, 
+        rect = (uv[0]-self._sub_width/2,
+            uv[1]-self._sub_width/2,
+            self._sub_width,
             self._sub_height)
-        rect2 = [int(uv[0]-self._sub_width/2), 
-            int(uv[0]+self._sub_width/2), 
-            int(uv[1]-self._sub_height/2), 
+        rect2 = [int(uv[0]-self._sub_width/2),
+            int(uv[0]+self._sub_width/2),
+            int(uv[1]-self._sub_height/2),
             int(uv[1]+self._sub_height/2)]
 
         for point in range(0,len(rect2)):
@@ -246,9 +246,9 @@ class WallDetector:
         for y in range(0,len(markers)):
             for x in range(0,len(markers[0])):
                 if markers[y,x] != center:
-                    markers[y,x] = 1 
+                    markers[y,x] = 1
                 else:
-                    markers[y,x] = 0 
+                    markers[y,x] = 0
         markers = np.array(markers, np.uint8)
 
 
@@ -401,9 +401,9 @@ class WallDetector:
 
         # Not near a wall
         else:
-            case_1_percent = self._percent_for_case_1 
+            case_1_percent = self._percent_for_case_1
             if near_other_food:
-                 case_1_percent = self._percent_for_near_food 
+                 case_1_percent = self._percent_for_near_food
 
             # Majority Vote of Regions
             num_with_stuff = 0
@@ -419,7 +419,7 @@ class WallDetector:
                 food_class = WallClass.kISOLATED
             else:
                 # differentiate from 2 / 3
-                if float(num_with_stuff)/float(self._num_regions) >= self._percent_for_case_3: 
+                if float(num_with_stuff)/float(self._num_regions) >= self._percent_for_case_3:
                     food_class = WallClass.kON_OBJ
                 else:
                     food_class = WallClass.kNEAR_OBJ

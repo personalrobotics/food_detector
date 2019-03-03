@@ -25,15 +25,11 @@ if __name__ == '__main__':
     rospy.init_node('food_detector')
 
     if args.demo_type == 'retinanet':
-        # TODO
-        pose_estimator = RetinaNetDetector(node_name=rospy.get_name())
-        raise NotImplementedError
+        pose_estimator = RetinaNetDetector(use_cuda=True, node_name=rospy.get_name())
     elif args.demo_type == "spnet":
         pose_estimator = FoodDetector(use_cuda=conf.use_cuda, node_name=rospy.get_name())
-    elif args.demo_type == 'spanet':
-        pose_estimator = ActionDetector(use_cuda = conf.use_cuda)
     else:
-        raise NotImplementedError
+        pose_estimator = ActionDetector(use_cuda = conf.use_cuda)
 
     if conf.use_cuda:
         os.environ['CUDA_VISIBLE_DEVICES'] = conf.gpus
