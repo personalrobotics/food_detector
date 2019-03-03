@@ -88,7 +88,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         center_y = (tymin + tymax) / 2.0
         return (center_x, center_y), 0.0
 
-    def find_closest_box_and_update(self, x, y, class_name, tolerance=40):
+    def find_closest_box_and_update(self, x, y, class_name, tolerance=70):
         """
         Finds ths closest bounding box in the current list and
         updates it with the provided x, y
@@ -184,7 +184,6 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         if boxes is None or len(boxes) == 0:
             msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
             self.pub_img.publish(msg_img)
-            print("Nothing detected")
             return list()
 
         # Intrinsic camera matrix for the raw (distorted) images.
@@ -272,7 +271,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 int(max(txmin, 0)):int(min(txmax, width))]
             z0 = self.calculate_depth(cropped_depth)
             if z0 < 0:
-                print("skipping " + t_class_name + " due to invalid z0")
+                # Skipping due to invalid z0
                 continue
 
             if spBoxIdx >= 0:
