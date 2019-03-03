@@ -22,9 +22,7 @@ if __name__ == '__main__':
     args = parser.parse_args(rospy.myargv()[1:])
 
     if args.demo_type == 'retinanet':
-        # TODO
-        pose_estimator = RetinaNetDetector(node_name=rospy.get_name())
-        raise NotImplementedError
+        pose_estimator = RetinaNetDetector(use_cuda=True, node_name=rospy.get_name())
     elif args.demo_type == "spnet":
         rospy.init_node('food_detector')
         pose_estimator = FoodDetector(use_cuda=True, node_name=rospy.get_name())
