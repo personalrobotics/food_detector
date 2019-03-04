@@ -20,6 +20,7 @@ from pose_estimators.utils import CameraSubscriber
 from bite_selection_package.model.spanet import SPANet
 from bite_selection_package.model.spanet import DenseSPANet
 from bite_selection_package.config import spanet_config
+from bite_selection_package.utils.visualize_spanet import draw_image
 
 from retinanet_detector import RetinaNetDetector
 from image_publisher import ImagePublisher
@@ -71,14 +72,6 @@ class ActionDetector(RetinaNetDetector):
         self.final_size = 512
         self.target_size = 144
 
-        self.pub_img = rospy.Publisher(
-            '{}/detection_image'.format(self.node_name),
-            Image,
-            queue_size=2)
-        self.pub_target_img = rospy.Publisher(
-            '{}/target_image'.format(self.node_name),
-            Image,
-            queue_size=2)
         self.pub_spanet_img = rospy.Publisher(
             '{}/spanet_image'.format(self.node_name),
             Image,
@@ -167,7 +160,7 @@ class ActionDetector(RetinaNetDetector):
         img.paste(img_org, pads)
         transform = transforms.Compose([transforms.ToTensor()])
         pred_vector, _ = self.spanet(
-            torch.stack([transform(img)]), None)
+            torch.stack([transform(img).cuda()]), None)
 
         pred_vector = pred_vector.cpu().detach().numpy().flatten()
 
@@ -188,5 +181,10 @@ class ActionDetector(RetinaNetDetector):
 
         action_name = ACTIONS[action_idx // 2]
 
+        self.visualize_spanet(img, pred_vector)
         return position, angle, action_name
 
+    def visualize_spanet(self, image, pred_vector):
+        img = draw_image(image, pred_vector)
+        msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
+        self.pub_spanet_img.publish(msg_img)
