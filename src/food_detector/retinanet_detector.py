@@ -63,8 +63,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         # box x class with a unique id
         # Used fortracking (temporarily)
         self.detected_item_boxes = dict()
-        for food in self.selector_food_names:
-            self.detected_item_boxes[food] = dict()
+        # for food in self.selector_food_names:
+            # self.detected_item_boxes[food] = dict()
 
     def create_detected_item(self, rvec, tvec, t_class_name, box_id,
                              db_key='food_item', info_map=dict()):
@@ -86,9 +86,10 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         """
         @return skewering position and angle in the image.
         """
-        return [0.5, 0.5], 0.0, dict()
+        return [[0.5, 0.5]], [0.0], [dict()]
 
-    def find_closest_box_and_update(self, x, y, class_name, tolerance=70):
+    def find_closest_box_and_update(self, x, y, class_name,
+        tolerance=70):
         """
         Finds ths closest bounding box in the current list and
         updates it with the provided x, y
@@ -103,6 +104,10 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         matched_id = None
         largest_id = -1
         ids_to_delete = []
+
+        if class_name not in self.detected_item_boxes:
+            self.detected_item_boxes[class_name] = dict()
+
         for bid, (bx, by) in self.detected_item_boxes[class_name].iteritems():
             distance = np.linalg.norm(np.array([x, y]) - np.array([bx, by]))
             largest_id = max(largest_id, bid)
@@ -255,57 +260,63 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             if (txmin < 0 or tymin < 0 or txmax > width or tymax > height):
                 continue
 
-            skewer_xy, skewer_angle, skewer_info = self.get_skewering_pose(
+            skewer_xys, skewer_angles, skewer_infos = self.get_skewering_pose(
                     txmin, txmax, tymin, tymax, width, height,
                     copied_img_msg, t_class_name)
 
-            if len(skewer_xy) < 2:
+            if len(skewer_xys) == 0:
                 self.visualize_detections(img, [], [], [], bbox_offset)
                 continue
 
-            class_box_id = self.find_closest_box_and_update(
-                    (txmin + txmax) / 2.0, (tymin + tymax) / 2.0, t_class_name)
+            for skewer_xy, skewer_angle, skewer_info in zip(skewer_xys, skewer_angles, skewer_infos):
 
-            cropped_depth = depth_img[
-                int(max(tymin, 0)):int(min(tymax, height)),
-                int(max(txmin, 0)):int(min(txmax, width))]
-            z0 = self.calculate_depth(cropped_depth)
-            if z0 < 0:
-                # Skipping due to invalid z0
-                continue
+                if "action" in skewer_info:
+                    t_class_name_current = t_class_name + "+" + skewer_info["action"]
 
-            if spBoxIdx >= 0:
-                this_pos = skewer_xy
-                this_ang = skewer_angle
+                class_box_id = self.find_closest_box_and_update(
+                        (txmin + txmax) / 2.0, (tymin + tymax) / 2.0,
+                        t_class_name_current)
 
-                txoff = (txmax - txmin) * this_pos[0]
-                tyoff = (tymax - tymin) * this_pos[1]
-                pt = [txmin + txoff, tymin + tyoff]
-
-                coff = 60
                 cropped_depth = depth_img[
-                    int(pt[1] - coff):int(pt[1] + coff),
-                    int(pt[0] - coff):int(pt[1] + coff)]
-                current_z0 = self.calculate_depth(cropped_depth)
-                if (current_z0 < 0):
-                    current_z0 = z0
+                    int(max(tymin, 0)):int(min(tymax, height)),
+                    int(max(txmin, 0)):int(min(txmax, width))]
+                z0 = self.calculate_depth(cropped_depth)
+                if z0 < 0:
+                    # Skipping due to invalid z0
+                    continue
 
-                x, y, z, w = quaternion_from_euler(
-                    this_ang + 90, 0., 0.)
-                rvec = np.array([x, y, z, w])
+                if spBoxIdx >= 0:
+                    this_pos = skewer_xy
+                    this_ang = skewer_angle
 
-                tz = current_z0
-                tx = (tz / cam_fx) * (pt[0] - cam_cx)
-                ty = (tz / cam_fy) * (pt[1] - cam_cy)
-                tvec = np.array([tx, ty, tz])
+                    txoff = (txmax - txmin) * this_pos[0]
+                    tyoff = (tymax - tymin) * this_pos[1]
+                    pt = [txmin + txoff, tymin + tyoff]
 
-                detections.append(self.create_detected_item(
-                    rvec, tvec, t_class_name, class_box_id, info_map=skewer_info))
+                    coff = 60
+                    cropped_depth = depth_img[
+                        int(pt[1] - coff):int(pt[1] + coff),
+                        int(pt[0] - coff):int(pt[1] + coff)]
+                    current_z0 = self.calculate_depth(cropped_depth)
+                    if (current_z0 < 0):
+                        current_z0 = z0
 
-                chosen_boxes.append(boxes[box_idx])
-                chosen_labels.append(
-                    "{}_{}".format(t_class_name, class_box_id))
-                chosen_scores.append(scores[box_idx])
+                    x, y, z, w = quaternion_from_euler(
+                        0, 0., this_ang + 90.)
+                    rvec = np.array([x, y, z, w])
+
+                    tz = current_z0
+                    tx = (tz / cam_fx) * (pt[0] - cam_cx)
+                    ty = (tz / cam_fy) * (pt[1] - cam_cy)
+                    tvec = np.array([tx, ty, tz])
+
+                    detections.append(self.create_detected_item(
+                        rvec, tvec, t_class_name_current, class_box_id, info_map=skewer_info))
+
+                    chosen_boxes.append(boxes[box_idx])
+                    chosen_labels.append(
+                        "{}_{}".format(t_class_name, class_box_id))
+                    chosen_scores.append(scores[box_idx])
 
         self.visualize_detections(
             img, chosen_boxes, chosen_scores, chosen_labels, bbox_offset)

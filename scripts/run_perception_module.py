@@ -46,7 +46,7 @@ if __name__ == '__main__':
         marker_manager=marker_manager,
         detection_frame_marker_topic=None,
         detection_frame=conf.camera_tf,
-        destination_frame="map",
+        destination_frame=conf.camera_tf,
         purge_all_markers_per_update=True)
 
     run_detection(rospy.get_name(), conf.frequency, perception_module)

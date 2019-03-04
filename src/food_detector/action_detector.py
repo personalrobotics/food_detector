@@ -33,7 +33,8 @@ class ActionDetector(RetinaNetDetector):
     Action detector returns particular action as the class of each object.
     """
 
-    def __init__(self, use_cuda=True, use_walldetector=False):
+    def __init__(self, use_cuda=True, use_walldetector=False,
+        num_action_per_item=2):
         RetinaNetDetector.__init__(
             self,
             retinanet_checkpoint=conf.checkpoint,
@@ -43,11 +44,6 @@ class ActionDetector(RetinaNetDetector):
             camera_to_table=conf.camera_to_table,
             camera_tilt=1e-5,
             frame=conf.camera_tf)
-
-        #self.score = json.loads(scores)
-        #self.actions = ["vertical_skewer_0",
-        #                "vertical_tilted_skewer_0",
-        #                "vertical_angled_skewer_0"]
 
         self.listener = TransformListener()
         self.detection_frame = conf.camera_tf
@@ -71,6 +67,8 @@ class ActionDetector(RetinaNetDetector):
 
         self.final_size = 512
         self.target_size = 144
+
+        self.num_action_per_item = num_action_per_item
 
         self.pub_spanet_img = rospy.Publisher(
             '{}/spanet_image'.format(self.node_name),
@@ -144,10 +142,17 @@ class ActionDetector(RetinaNetDetector):
         for dim in cropped_img.shape:
             if dim == 0:
                 return None, None, None
-        position, angle, action = self.publish_spanet(cropped_img, t_class_name, True)
+        positions, angles, actions, scores, rotations = self.publish_spanet(
+            cropped_img, t_class_name, True)
 
-        return position, angle, dict(action=action,
-            uv=((txmin + txmax) / 2.0, (tymin + tymax) / 2.0))
+        info_maps = [dict(
+            action=action,
+            uv=[float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0],
+            score=round(float(score),2),
+            rotation=float(rotation)) for rotation, action, score in zip(
+                rotations, actions, scores)]
+
+        return positions, angles, info_maps
 
     def publish_spanet(self, sliced_img, identity, actuallyPublish=False):
         img_org = PILImage.fromarray(sliced_img.copy())
@@ -169,20 +174,33 @@ class ActionDetector(RetinaNetDetector):
         p2 = pred_vector[2:4]
 
         position = np.divide(p1 + p2, 2.0)
-        angle = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
+        angle = np.degrees(np.arctan2(p2[1] - p1[1], p2[0] - p1[0]))
 
         success_rates = pred_vector[4:]
-        action_idx = np.argmax(success_rates)
-
-        if (action_idx % 2 == 0):
-            angle = 0
-        else:
-            angle = 90
-
-        action_name = ACTIONS[action_idx // 2]
+        order = np.argsort(success_rates * -1)
 
         self.visualize_spanet(img, pred_vector)
-        return position, angle, action_name
+
+        positions = [position] * self.num_action_per_item
+        angles = [angle] * self.num_action_per_item
+
+        rotations = []
+        action_names = []
+        best_success_rates = []
+
+        for action_idx in order[:self.num_action_per_item]:
+            success_rate = success_rates[action_idx]
+
+            if (action_idx % 2 == 0):
+                rotation = 0
+            else:
+                rotation = 90.0
+
+            action_names += [ACTIONS[action_idx // 2]]
+            best_success_rates += [success_rate]
+            rotations += [rotation]
+
+        return positions, angles, action_names, best_success_rates, rotations
 
     def visualize_spanet(self, image, pred_vector):
         img = draw_image(image, pred_vector)

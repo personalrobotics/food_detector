@@ -234,4 +234,4 @@ class FoodDetector(RetinaNetDetector):
 
         sp_pose, sp_angle = self.publish_spnet(cropped_img, t_class_name, True)
 
-        return sp_pose, sp_angle, dict()
+        return [sp_pose], [sp_angle], [dict()]
