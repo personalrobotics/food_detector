@@ -17,6 +17,9 @@ import ada_feeding_demo_config as conf
 
 
 class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
+    """
+    @param ema_alpha: exponential moving average weight on new data
+    """
     def __init__(
             self,
             use_cuda,
@@ -31,7 +34,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             depth_image_topic='/camera/aligned_depth_to_color/image_raw',
             camera_info_topic='/camera/color/camera_info',
             detection_frame='camera_color_optical_frame',
-            timeout=1.0):
+            timeout=1.0,
+            ema_alpha=0.2):
 
         PoseEstimator.__init__(self)
         CameraSubscriber.__init__(
@@ -48,6 +52,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         self.label_map = load_label_map(label_map_file)
 
         self.timeout = timeout
+        self.ema_alpha = ema_alpha
 
         self.selector_food_names = self.label_map.values()
         self.selector_index = 0
@@ -88,17 +93,19 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         """
         return [[0.5, 0.5]], [0.0], [dict()]
 
-    def find_closest_box_and_update(self, x, y, class_name,
+    def find_closest_box_and_update(self, x, y, angle, class_name,
         tolerance=70):
         """
         Finds ths closest bounding box in the current list and
         updates it with the provided x, y
-        @param x: Center x-position of a bounding box in 2D image
-        @param y: Center y-position of a bounding box in 2D image
+        @param x: Skewering x pixel position in 2D image
+        @param y: Skewering y pixel position in 2D image
+        @param angle, Skewering angle
         @param class_name: Class name of the associated item
-        @param tolerance: Pixel tolerance. If no box of same class is found
-        within this tolerance, adds a new box with a new id
-        @return Box id associated with the closest bounding box
+        @param tolerance: Pixel tolerance. If no skewering position 
+        of same class is found within this tolerance, 
+        adds a new box with a new id
+        @return Id associated with the closest skewering pose
         """
         min_distance = np.float('inf')
         matched_id = None
@@ -108,7 +115,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         if class_name not in self.detected_item_boxes:
             self.detected_item_boxes[class_name] = dict()
 
-        for bid, (bx, by) in self.detected_item_boxes[class_name].iteritems():
+        for bid, (bx, by, _) in self.detected_item_boxes[class_name].iteritems():
             distance = np.linalg.norm(np.array([x, y]) - np.array([bx, by]))
             largest_id = max(largest_id, bid)
             if distance >= tolerance:
@@ -127,9 +134,15 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 self.detected_item_boxes[class_name].pop(mid)
 
         if matched_id is not None:
-            self.detected_item_boxes[class_name][matched_id] = (x, y)
+            # Perform EMA
+            alpha = self.ema_alpha
+            old_data = self.detected_item_boxes[class_name][matched_id]
+            newx = alpha * x + (1.0 - alpha) * old_data[0]
+            newy = alpha * y + (1.0 - alpha) * old_data[1]
+            newa = alpha * angle + (1.0 - alpha) * old_data[2]
+            self.detected_item_boxes[class_name][matched_id] = (newx, newy, newa)
         else:
-            self.detected_item_boxes[class_name][largest_id + 1] = (x, y)
+            self.detected_item_boxes[class_name][largest_id + 1] = (x, y, angle)
             matched_id = largest_id + 1
             print("Adding a new box with id {} for {}".format(
                 matched_id, class_name))
@@ -273,9 +286,15 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 if "action" in skewer_info:
                     t_class_name_current = t_class_name + "+" + skewer_info["action"]
 
+                # Update Skewering Pose and Angle from past data
+                txoff = (txmax - txmin) * skewer_xy[0]
+                tyoff = (tymax - tymin) * skewer_xy[1]
                 class_box_id = self.find_closest_box_and_update(
-                        (txmin + txmax) / 2.0, (tymin + tymax) / 2.0,
+                        txoff, tyoff, skewer_angle,
                         t_class_name_current)
+                txoff = self.detected_item_boxes[class_name][class_box_id][0]
+                tyoff = self.detected_item_boxes[class_name][class_box_id][1]
+                this_ang = self.detected_item_boxes[class_name][class_box_id][2]
 
                 cropped_depth = depth_img[
                     int(max(tymin, 0)):int(min(tymax, height)),
@@ -286,11 +305,6 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     continue
 
                 if spBoxIdx >= 0:
-                    this_pos = skewer_xy
-                    this_ang = skewer_angle
-
-                    txoff = (txmax - txmin) * this_pos[0]
-                    tyoff = (tymax - tymin) * this_pos[1]
                     pt = [txmin + txoff, tymin + tyoff]
 
                     coff = 60
