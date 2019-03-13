@@ -28,8 +28,10 @@ if __name__ == '__main__':
         pose_estimator = RetinaNetDetector(use_cuda=True, node_name=rospy.get_name())
     elif args.demo_type == "spnet":
         pose_estimator = FoodDetector(use_cuda=conf.use_cuda, node_name=rospy.get_name())
-    else:
+    elif args.demo_type == "spanet":
         pose_estimator = ActionDetector(use_cuda = conf.use_cuda)
+    else:
+        raise ValueError("Unknown demo type")
 
     if conf.use_cuda:
         os.environ['CUDA_VISIBLE_DEVICES'] = conf.gpus

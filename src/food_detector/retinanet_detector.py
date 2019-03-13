@@ -153,11 +153,9 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
     def detect_objects(self):
         if self.img_msg is None:
-            print('no input stream')
             return list()
 
         if self.depth_img_msg is None:
-            print('no input depth stream')
             self.depth_img_msg = np.ones(self.img_msg.shape[:2])
 
         copied_img_msg = self.img_msg.copy()
