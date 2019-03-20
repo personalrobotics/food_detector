@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import division
+from __future__ import division, print_function
 
 import os
 import json
@@ -9,6 +9,8 @@ from tf import TransformListener
 from sensor_msgs.msg import Image
 import torch
 import torchvision.transforms as transforms
+
+from .wall_detector import WallDetector, WallClass
 
 from PIL import Image as PILImage
 
@@ -20,7 +22,7 @@ from pose_estimators.utils import CameraSubscriber
 from bite_selection_package.model.spanet import SPANet
 from bite_selection_package.model.spanet import DenseSPANet
 from bite_selection_package.config import spanet_config
-from bite_selection_package.utils.visualize_spanet import draw_image
+#from bite_selection_package.utils.visualize_spanet import draw_image
 
 from retinanet_detector import RetinaNetDetector
 from image_publisher import ImagePublisher
@@ -33,7 +35,7 @@ class ActionDetector(RetinaNetDetector):
     Action detector returns particular action as the class of each object.
     """
 
-    def __init__(self, use_cuda=True, use_walldetector=False,
+    def __init__(self, use_cuda=True, use_walldetector=True,
         num_action_per_item=2):
         RetinaNetDetector.__init__(
             self,
@@ -50,13 +52,10 @@ class ActionDetector(RetinaNetDetector):
         self.destination_frame = conf.destination_frame
         self.timeout = 1.0
 
-        self.use_walldetector = False
+        self.use_walldetector = use_walldetector
 
         if self.use_walldetector:
             self.wall_detector = WallDetector()
-            # TODO load scores map and actions
-            self.scores = dict()
-            self.actions = []
         else:
             self.wall_detector = None
 
@@ -108,28 +107,18 @@ class ActionDetector(RetinaNetDetector):
         if self.wall_detector is None:
             return detected_items
 
-        # Get the transform from destination to detection frame
-        camera_transform = get_transform_matrix(self.listener,
-            self.destination_frame,
-            self.detection_frame,
-            self.timeout)
-
         # Register all UV Points in wall detector
-        for item in detected_items:
-            self.wall_detector.register_uv(item.info_map['uv'])
+        self.wall_detector.register_items(detected_items)
 
         for item in detected_items:
-            wall_type = self.wall_detector.classify(uv, self.img_msg, self.depth_img_msg)
+            wall_type = self.wall_detector.classify(item, self.img_msg, self.depth_img_msg)
 
-            scores = [self.score[item.namespace][wall_type][action]
-                for action in self.actions]
+            if wall_type != WallClass.kUNKNOWN:
+                print("Item ID: %d" % item.marker_id)
+                print("Wall Type: " + str(wall_type))
+                print()
 
-            best_action = self.actions[np.argmax(scores)]
-
-            item.info_map["best_action"] = best_action
-            item.info_map["best_action_score"] = score
-
-        return item
+        return detected_items
 
     def get_skewering_pose(
             self, txmin, txmax, tymin, tymax, width,
@@ -179,7 +168,7 @@ class ActionDetector(RetinaNetDetector):
         success_rates = pred_vector[4:]
         order = np.argsort(success_rates * -1)
 
-        self.visualize_spanet(img, pred_vector)
+#        self.visualize_spanet(img, pred_vector)
 
         positions = [position] * self.num_action_per_item
         angles = [angle] * self.num_action_per_item
@@ -202,7 +191,7 @@ class ActionDetector(RetinaNetDetector):
 
         return positions, angles, action_names, best_success_rates, rotations
 
-    def visualize_spanet(self, image, pred_vector):
-        img = draw_image(image, pred_vector)
-        msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
-        self.pub_spanet_img.publish(msg_img)
+#    def visualize_spanet(self, image, pred_vector):
+#        img = draw_image(image, pred_vector)
+#        msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
+#        self.pub_spanet_img.publish(msg_img)
