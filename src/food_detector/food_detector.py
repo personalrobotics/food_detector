@@ -246,4 +246,4 @@ class FoodDetector(RetinaNetDetector):
         return sp_pose, sp_angle
         """
 
-        return [0.5, 0.2], 0.0
+        return [0.5, 1.2], 0.0

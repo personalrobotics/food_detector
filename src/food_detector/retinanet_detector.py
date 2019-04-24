@@ -79,14 +79,14 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             detected_time=rospy.Time.now())
 
     # Inherited classes change this
-    def get_skewering_pose(self, txmin, txmax, tymin, tymax, width, height,
-                           img_msg, t_class_name):
-        """
-        @return skewering position and angle in the image.
-        """
-        center_x = (txmin + txmax) / 2.0
-        center_y = (tymin + tymax) / 2.0
-        return (center_x, center_y), 0.0
+    # def get_skewering_pose(self, txmin, txmax, tymin, tymax, width, height,
+    #                        img_msg, t_class_name):
+    #     """
+    #     @return skewering position and angle in the image.
+    #     """
+    #     center_x = (txmin + txmax) / 2.0
+    #     center_y = (tymin + tymax) / 2.0
+    #     return (center_x, center_y), 0.0
 
     def find_closest_box_and_update(self, x, y, class_name, tolerance=70):
         """
