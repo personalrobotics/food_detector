@@ -12,7 +12,7 @@ from pose_estimators.marker_manager import MarkerManager
 import food_detector.ada_feeding_demo_config as conf
 from food_detector.food_detector import FoodDetector
 from food_detector.retinanet_detector import RetinaNetDetector
-from food_detector.action_detector import ActionDetector
+from food_detector.spanet_detector import SPANetDetector
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     elif args.demo_type == "spnet":
         pose_estimator = FoodDetector(use_cuda=conf.use_cuda, node_name=rospy.get_name())
     elif args.demo_type == "spanet":
-        pose_estimator = ActionDetector(use_cuda = conf.use_cuda)
+        pose_estimator = SPANetDetector(use_cuda = conf.use_cuda)
     else:
         raise ValueError("Unknown demo type")
 
