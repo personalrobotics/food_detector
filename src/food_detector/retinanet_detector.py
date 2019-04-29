@@ -84,7 +84,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
     def get_skewering_pose(self, txmin, txmax, tymin, tymax, width, height,
                            img_msg, t_class_name):
         """
-        @return skewering position and angle in the image.
+        @return list of skewering position, angle,
+        and other information for each detected item in the image.
         """
         return [[0.5, 0.5]], [0.0], [dict()]
 

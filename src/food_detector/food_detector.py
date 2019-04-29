@@ -227,7 +227,8 @@ class FoodDetector(RetinaNetDetector):
             self, txmin, txmax, tymin, tymax, width,
             height, img_msg, t_class_name):
         """
-        @return skewering position and angle in the image.
+        @return list of skewering position, angle,
+        and other information for each detected item in the image.
         """
         cropped_img = img_msg[int(max(tymin, 0)):int(min(tymax, height)),
                               int(max(txmin, 0)):int(min(txmax, width))]
