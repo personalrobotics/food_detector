@@ -30,7 +30,7 @@ import spa_demo_config as conf
 
 ACTIONS = ['vertical', 'tilted-vertical', 'tilted-angled']
 
-class ActionDetector(RetinaNetDetector):
+class SPANetDetector(RetinaNetDetector):
     """
     Action detector returns particular action as the class of each object.
     """
@@ -58,8 +58,6 @@ class ActionDetector(RetinaNetDetector):
             self.wall_detector = WallDetector()
         else:
             self.wall_detector = None
-
-        self.agg_pc_data = list()
 
         self.use_densenet = spanet_config.use_densenet
         self.target_position = np.array([320, 240])
@@ -124,7 +122,8 @@ class ActionDetector(RetinaNetDetector):
             self, txmin, txmax, tymin, tymax, width,
             height, img_msg, t_class_name):
         """
-        @return skewering position and angle in the image.
+        @return list of skewering position, angle,
+        and other information for each detected item in the image.
         """
         cropped_img = img_msg[int(max(tymin, 0)):int(min(tymax, height)),
                               int(max(txmin, 0)):int(min(txmax, width))]
@@ -163,6 +162,11 @@ class ActionDetector(RetinaNetDetector):
         p2 = pred_vector[2:4]
 
         position = np.divide(p1 + p2, 2.0)
+        # Offset if necessary
+        fudge_offset = np.array([[0, 0]]).reshape(position.shape)
+        position = position + fudge_offset
+        print("Position: " + str(position))
+
         angle = np.degrees(np.arctan2(p2[1] - p1[1], p2[0] - p1[0]))
 
         success_rates = pred_vector[4:]

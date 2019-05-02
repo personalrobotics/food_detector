@@ -84,7 +84,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
     def get_skewering_pose(self, txmin, txmax, tymin, tymax, width, height,
                            img_msg, t_class_name):
         """
-        @return skewering position and angle in the image.
+        @return list of skewering position, angle,
+        and other information for each detected item in the image.
         """
         return [[0.5, 0.5]], [0.0], [dict()]
 
@@ -153,11 +154,9 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
     def detect_objects(self):
         if self.img_msg is None:
-            print('no input stream')
             return list()
 
         if self.depth_img_msg is None:
-            print('no input depth stream')
             self.depth_img_msg = np.ones(self.img_msg.shape[:2])
 
         copied_img_msg = self.img_msg.copy()
