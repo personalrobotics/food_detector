@@ -10,8 +10,8 @@ pr_path = rospack.get_path('pytorch_retinanet')
 gpus = '0'
 use_cuda = torch.cuda.is_available()
 
-image_topic = '/camera/color/image_raw'
-msg_type = 'raw'
+image_topic = '/camera/color/image_raw/compressed'
+msg_type = 'compressed'
 depth_image_topic = '/camera/aligned_depth_to_color/image_raw'
 depth_msg_type = 'raw'
 
