@@ -25,6 +25,7 @@ from bite_selection_package.utils.visualize_spanet import draw_image
 from retinanet_detector import RetinaNetDetector
 from image_publisher import ImagePublisher
 import spa_demo_config as conf
+from wall_detector import WallDetector
 
 ACTIONS = ['vertical', 'tilted-vertical', 'tilted-angled']
 
@@ -33,7 +34,7 @@ class SPANetDetector(RetinaNetDetector):
     Action detector returns particular action as the class of each object.
     """
 
-    def __init__(self, use_cuda=True, use_walldetector=False,
+    def __init__(self, use_cuda=True, use_walldetector=True,
         num_action_per_item=2):
         RetinaNetDetector.__init__(
             self,
@@ -50,7 +51,8 @@ class SPANetDetector(RetinaNetDetector):
         self.destination_frame = conf.destination_frame
         self.timeout = 1.0
 
-        self.use_walldetector = False
+        print("Use wall detector: ", use_walldetector)
+        self.use_walldetector = use_walldetector
 
         if self.use_walldetector:
             self.wall_detector = WallDetector()
@@ -83,12 +85,20 @@ class SPANetDetector(RetinaNetDetector):
         print('Loaded {}SPANet'.format('Dense' if self.use_densenet else ''))
 
         if self.use_cuda:
-            ckpt = torch.load(
-                os.path.expanduser(conf.spanet_checkpoint))
+            if not self.use_walldetector:
+                ckpt = torch.load(
+                    os.path.expanduser(conf.spanet_checkpoint))
+            else:
+                ckpt = torch.load(
+                    os.path.expanduser(conf.spanet_wall_checkpoint))
         else:
-            ckpt = torch.load(
-                os.path.expanduser(conf.spanet_checkpoint),
-                map_location='cpu')
+            if not self.use_walldetector:
+                ckpt = torch.load(
+                    os.path.expanduser(conf.spanet_checkpoint),
+                    map_location='cpu')
+            else:
+                ckpt = torch.load(
+                    os.path.expanduser(conf.spanet_wall_checkpoint))
 
         self.spanet.load_state_dict(ckpt['net'])
         self.spanet.eval()
@@ -117,6 +127,7 @@ class SPANetDetector(RetinaNetDetector):
             self.wall_detector.register_uv(item.info_map['uv'])
 
         for item in detected_items:
+            uv = item.info_map['uv']
             wall_type = self.wall_detector.classify(uv, self.img_msg, self.depth_img_msg)
 
             scores = [self.score[item.namespace][wall_type][action]

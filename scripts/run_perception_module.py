@@ -41,7 +41,7 @@ if __name__ == '__main__':
         marker_type=Marker.CUBE,
         scale=[0.01, 0.01, 0.01],
         color=[0.5, 1.0, 0.5, 0.1],
-        count_items=False)  # spnet handles this internally
+        count_items=False)  # spnet and spanet handles this internally
 
     perception_module = PerceptionModule(
         pose_estimator=pose_estimator,
