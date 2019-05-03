@@ -387,8 +387,8 @@ class WallDetector:
 
             # Majority Vote of Regions
             num_with_stuff = 0
-            self._num_regions = self._num_regions - len(excluded_regions)
-            if self._num_regions > 0: # To prevent a error, but this should never happen if cirlces are good
+            considered_regions = self._num_regions - len(excluded_regions)
+            if considered_regions > 0: # To prevent a error, but this should never happen if cirlces are good
                 for region in range(0,len(regions)):
                     if region not in excluded_regions:
                         if self._debug:
@@ -397,8 +397,8 @@ class WallDetector:
                         if regions_median[region] > self._region_threshold:
                             num_with_stuff += 1
                 if self._debug:
-                    print("Percent of regions above threshold: " + str(float(num_with_stuff)/float(self._num_regions)))
-                if float(num_with_stuff)/float(self._num_regions) >= self._percent_for_case_3_near_wall:
+                    print("Percent of regions above threshold: " + str(float(num_with_stuff)/float(considered_regions)))
+                if float(num_with_stuff)/float(considered_regions) >= self._percent_for_case_3_near_wall:
                     food_class = WallClass.kON_OBJ
                 else:
                     food_class = WallClass.kNEAR_OBJ
