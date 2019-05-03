@@ -101,21 +101,6 @@ class SPANetDetector(RetinaNetDetector):
     def detect_objects(self):
         # Get DetectedItems using SPANet
         detected_items = RetinaNetDetector.detect_objects(self)
-
-        if self.wall_detector is None:
-            return detected_items
-
-        # Register all UV Points in wall detector
-        self.wall_detector.register_items(detected_items)
-
-        for item in detected_items:
-            wall_type = self.wall_detector.classify(item, self.img_msg, self.depth_img_msg)
-
-            if wall_type != WallClass.kUNKNOWN:
-                print("Item ID: %d" % item.marker_id)
-                print("Wall Type: " + str(wall_type))
-                print()
-
         return detected_items
 
     # Entry point to initialize any annotation function with all boxes
