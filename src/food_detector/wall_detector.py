@@ -18,15 +18,17 @@ class WallDetector:
         self._debug             = debug
         self._plate_radius_cm   = 8.5   # radius of plate in cm. 8.5=blue, 9.0=white
         self._near_wall_cm      = 1     # distace to detect if near wall
-        self._food_points       = []
+        self._food_set          = {}
+        self._food_class_list   = {}
         self._other_food_thresh = 6.0 #cm. distance threshold to see if the food is near another food item
+        self._food_history      = 50
 
         ## Table Plane Params
         self._hough_accum   = 1.5
         self._hough_min_dist= 100
         self._hough_param1  = 100
-        self._hough_param2  = 100 # Larger is more selective
-        self._hough_min     = 130
+        self._hough_param2  = 70 # Larger is more selective
+        self._hough_min     = 100
         self._hough_max     = 150
         self._table_buffer  = 50 # Extra radius around plate to use for table
 
@@ -92,7 +94,7 @@ class WallDetector:
         # cm -> pixels. compostable plate
         near_other_food = False
         dist_ratio = float(r)/self._plate_radius_cm
-        for bite in self._food_points:
+        for _, bite in self._food_set.iteritems():
             if point[0] != bite[0] or point[1] != bite[1]:
                 if ((float(point[0])-float(bite[0]))**2 + (float(point[1])-float(bite[1]))**2 )**(0.5) < dist_ratio * self._other_food_thresh:
                     near_other_food = True
@@ -118,11 +120,13 @@ class WallDetector:
         # Detect Largest Circle (Plate)
         circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, self._hough_accum, self._hough_min_dist,
             param1=self._hough_param1, param2=self._hough_param2, minRadius=self._hough_min, maxRadius=self._hough_max)
+        if circles is None:
+            return None, None, None
         circles = np.round(circles[0, :]).astype("int")
         plate_uv = (0, 0)
         plate_r = 0
         for (x,y,r) in circles:
-            print(r)
+            print("Radius: " + str(r))
             if r > plate_r:
                 plate_uv = (x, y)
                 plate_r = r
@@ -429,12 +433,18 @@ class WallDetector:
 
         return food_class
 
-    def classify(self, uv, img, depth):
+    def classify(self, item, img, depth):
+        uv = item.info_map['uv']
+        item_id = item.marker_id
         # Create Grayscale Image
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # Fit Table Plane
         plate_uv, plate_r, height = self._fit_table(img_gray, depth)
+        if plate_uv is None:
+            if self._debug:
+                print("Warning, no Hough Circle!")
+            return WallClass.kUNKNOWN
 
         # See if near other food item
         near_food_item =  self._near_other_food(uv, plate_r)
@@ -450,10 +460,19 @@ class WallDetector:
 
         food_class = self._decide(near_rim, near_food_item, region, region_median, plate_uv, plate_r)
 
-        return food_class
+        # Add to list
+        self._food_class_list[item_id].append(food_class)
+        if len(self._food_class_list[item_id]) > self._food_history:
+            self._food_class_list[item_id].pop(0)
 
-    def register_uv(self, uv):
-        self._food_points.append(uv)
+        # Return mode of list
+        return max(set(self._food_class_list[item_id]), key=self._food_class_list[item_id].count)
+
+    def register_items(self, items):
+        for item in items:
+            self._food_set[item.marker_id] = item.info_map['uv']
+            if item.marker_id not in self._food_class_list:
+                self._food_class_list[item.marker_id] = []
         if self._debug:
             print("Registered UV Point: " + str(uv))
 

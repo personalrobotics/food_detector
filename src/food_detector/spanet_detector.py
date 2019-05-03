@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import division
+from __future__ import division, print_function
 
 import os
 import json
@@ -9,6 +9,8 @@ from tf import TransformListener
 from sensor_msgs.msg import Image
 import torch
 import torchvision.transforms as transforms
+
+from .wall_detector import WallDetector, WallClass
 
 from PIL import Image as PILImage
 
@@ -20,7 +22,7 @@ from pose_estimators.utils import CameraSubscriber
 from bite_selection_package.model.spanet import SPANet
 from bite_selection_package.model.spanet import DenseSPANet
 from bite_selection_package.config import spanet_config
-from bite_selection_package.utils.visualize_spanet import draw_image
+#from bite_selection_package.utils.visualize_spanet import draw_image
 
 from retinanet_detector import RetinaNetDetector
 from image_publisher import ImagePublisher
@@ -34,7 +36,7 @@ class SPANetDetector(RetinaNetDetector):
     Action detector returns particular action as the class of each object.
     """
 
-    def __init__(self, use_cuda=True, use_walldetector=True,
+    def __init__(self, use_cuda=True, use_walldetector=False,
         num_action_per_item=2):
         RetinaNetDetector.__init__(
             self,
@@ -56,9 +58,6 @@ class SPANetDetector(RetinaNetDetector):
 
         if self.use_walldetector:
             self.wall_detector = WallDetector()
-            # TODO load scores map and actions
-            self.scores = dict()
-            self.actions = []
         else:
             self.wall_detector = None
 
@@ -81,7 +80,7 @@ class SPANetDetector(RetinaNetDetector):
         if self.use_densenet:
             self.spanet = DenseSPANet()
         else:
-            self.spanet = SPANet()
+            self.spanet = SPANet(use_wall=self.use_walldetector)
         print('Loaded {}SPANet'.format('Dense' if self.use_densenet else ''))
 
         if self.use_cuda:
@@ -109,36 +108,26 @@ class SPANetDetector(RetinaNetDetector):
             transforms.ToTensor(),
         ])
 
-    def detect_objects(self):
-        # Get DetectedItems using SPANet
-        detected_items = RetinaNetDetector.detect_objects(self)
+    # def detect_objects(self):
+    #     # Get DetectedItems using SPANet
+    #     detected_items = RetinaNetDetector.detect_objects(self)
 
-        if self.wall_detector is None:
-            return detected_items
+    #     if self.wall_detector is None:
+    #         return detected_items
 
-        # Get the transform from destination to detection frame
-        camera_transform = get_transform_matrix(self.listener,
-            self.destination_frame,
-            self.detection_frame,
-            self.timeout)
+    #     # Register all UV Points in wall detector
+    #     self.wall_detector.register_items(detected_items)
 
-        # Register all UV Points in wall detector
-        for item in detected_items:
-            self.wall_detector.register_uv(item.info_map['uv'])
+    #     for item in detected_items:
+    #         wall_type = self.wall_detector.classify(item, self.img_msg, self.depth_img_msg)
 
-        for item in detected_items:
-            uv = item.info_map['uv']
-            wall_type = self.wall_detector.classify(uv, self.img_msg, self.depth_img_msg)
+    #         if wall_type != WallClass.kUNKNOWN:
+    #             print("Item ID: %d" % item.marker_id)
+    #             print("Wall Type: " + str(wall_type))
+    #             print()
 
-            scores = [self.score[item.namespace][wall_type][action]
-                for action in self.actions]
 
-            best_action = self.actions[np.argmax(scores)]
-
-            item.info_map["best_action"] = best_action
-            item.info_map["best_action_score"] = score
-
-        return item
+    #     return detected_items
 
     def get_skewering_pose(
             self, txmin, txmax, tymin, tymax, width,
@@ -184,17 +173,17 @@ class SPANetDetector(RetinaNetDetector):
         p2 = pred_vector[2:4]
 
         position = np.divide(p1 + p2, 2.0)
+
         # Offset if necessary
         fudge_offset = np.array([[0, 0]]).reshape(position.shape)
         position = position + fudge_offset
-        print("Position: " + str(position))
 
         angle = np.degrees(np.arctan2(p2[1] - p1[1], p2[0] - p1[0]))
 
         success_rates = pred_vector[4:]
         order = np.argsort(success_rates * -1)
 
-        self.visualize_spanet(img, pred_vector)
+#        self.visualize_spanet(img, pred_vector)
 
         positions = [position] * self.num_action_per_item
         angles = [angle] * self.num_action_per_item
@@ -217,7 +206,7 @@ class SPANetDetector(RetinaNetDetector):
 
         return positions, angles, action_names, best_success_rates, rotations
 
-    def visualize_spanet(self, image, pred_vector):
-        img = draw_image(image, pred_vector)
-        msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
-        self.pub_spanet_img.publish(msg_img)
+#    def visualize_spanet(self, image, pred_vector):
+#        img = draw_image(image, pred_vector)
+#        msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
+#        self.pub_spanet_img.publish(msg_img)
