@@ -433,9 +433,9 @@ class WallDetector:
 
         return food_class
 
-    def classify(self, item, img, depth):
-        uv = item.info_map['uv']
-        item_id = item.marker_id
+    def classify(self, box, img, depth):
+        uv = box['uv']
+        item_id = box['id']
         # Create Grayscale Image
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -468,11 +468,11 @@ class WallDetector:
         # Return mode of list
         return max(set(self._food_class_list[item_id]), key=self._food_class_list[item_id].count)
 
-    def register_items(self, items):
+    def register_items(self, boxes):
         for item in items:
-            self._food_set[item.marker_id] = item.info_map['uv']
+            self._food_set[boxes['id']] = boxes['uv']
             if item.marker_id not in self._food_class_list:
-                self._food_class_list[item.marker_id] = []
+                self._food_class_list[boxes['id']] = []
         if self._debug:
             print("Registered UV Point: " + str(uv))
 
