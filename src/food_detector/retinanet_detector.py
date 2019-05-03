@@ -82,7 +82,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
     # Inherited classes change this
     def get_skewering_pose(self, txmin, txmax, tymin, tymax, width, height,
-                           img_msg, t_class_name):
+                           img_msg, t_class_name, annotation):
         """
         @return list of skewering position, angle,
         and other information for each detected item in the image.
@@ -151,6 +151,14 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             return -1
         z0 = np.mean(depth)
         return z0 / 1000.0  # mm to m
+
+    # Entry point to initialize any annotation function with all boxes
+    def annotation_initialization(self, boxes):
+        pass
+
+    # Entry point to annotate individual boxes with arbitrary data
+    def annotate_box(self, box):
+        return None
 
     def detect_objects(self):
         if self.img_msg is None:
@@ -245,6 +253,38 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         chosen_labels = []
         chosen_scores = []
 
+        ### Begin Annotation Initialization
+        # Label all food items to initialize any annotation algorithm
+        boxes_labeled = []
+        for box_idx in range(len(boxes)):
+            box_labeled = {}
+
+            # Get Location
+            txmin, tymin, txmax, tymax = boxes[box_idx].numpy() - bbox_offset
+            if (txmin < 0 or tymin < 0 or txmax > width or tymax > height):
+                continue
+
+            uv=[float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0]
+            box_labeled['uv'] = uv
+
+            # Get Class Name
+            t_class = labels[box_idx].item()
+            if t_class == -1:
+                t_class_name = 'sample'
+            else:
+                t_class_name = self.label_map[t_class]
+            if force_food:
+                t_class_name = force_food_name
+            class_box_id = self.find_closest_box_and_update(
+                        (txmin + txmax) / 2.0, (tymin + tymax) / 2.0,
+                        t_class_name)
+
+            box_labeled['id'] = class_box_id
+
+            boxes_labeled.append(box_labeled)
+        self.annotation_initialization(boxes_labeled)
+        ### End Annotation Initialization
+
         for box_idx in range(len(boxes)):
             t_class = labels[box_idx].item()
             if t_class == -1:
@@ -259,9 +299,18 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             if (txmin < 0 or tymin < 0 or txmax > width or tymax > height):
                 continue
 
+            ### Begin Annotation
+            box_labeled = {}
+            box_labeled['id'] = self.find_closest_box_and_update(
+                        (txmin + txmax) / 2.0, (tymin + tymax) / 2.0,
+                        t_class_name)
+            box_labeled['uv'] = [float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0]
+            annotation = self.annotate_box(box_labeled)
+            ### End Annotation
+            
             skewer_xys, skewer_angles, skewer_infos = self.get_skewering_pose(
                     txmin, txmax, tymin, tymax, width, height,
-                    copied_img_msg, t_class_name)
+                    copied_img_msg, t_class_name, annotation)
 
             if len(skewer_xys) == 0:
                 self.visualize_detections(img, [], [], [], bbox_offset)

@@ -335,6 +335,9 @@ class WallDetector:
                     ext_mask[y,x] = 0
 
         # Discretize region around fruit
+        # TODO: (Gilwoo) this errors with division_by_zero sometimes.
+        # Since the current mode Can we make wall detector safe
+        # (not crash) when it's actually not above plate? (We run spanet all the time)
         angle = int(360/self._num_regions)
         regions = []
         for x in range(self._num_regions):
@@ -433,9 +436,9 @@ class WallDetector:
 
         return food_class
 
-    def classify(self, item, img, depth):
-        uv = item.info_map['uv']
-        item_id = item.marker_id
+    def classify(self, box, img, depth):
+        uv = box['uv']
+        item_id = box['id']
         # Create Grayscale Image
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -468,11 +471,11 @@ class WallDetector:
         # Return mode of list
         return max(set(self._food_class_list[item_id]), key=self._food_class_list[item_id].count)
 
-    def register_items(self, items):
-        for item in items:
-            self._food_set[item.marker_id] = item.info_map['uv']
-            if item.marker_id not in self._food_class_list:
-                self._food_class_list[item.marker_id] = []
+    def register_items(self, boxes):
+        for item in boxes:
+            self._food_set[item['id']] = item['uv']
+            if item['id'] not in self._food_class_list:
+                self._food_class_list[item['id']] = []
         if self._debug:
             print("Registered UV Point: " + str(uv))
 

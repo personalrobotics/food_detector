@@ -27,7 +27,7 @@ from bite_selection_package.config import spanet_config
 from retinanet_detector import RetinaNetDetector
 from image_publisher import ImagePublisher
 import spa_demo_config as conf
-from wall_detector import WallDetector
+from wall_detector import WallDetector, WallClass
 
 ACTIONS = ['vertical', 'tilted-vertical', 'tilted-angled']
 
@@ -36,7 +36,7 @@ class SPANetDetector(RetinaNetDetector):
     Action detector returns particular action as the class of each object.
     """
 
-    def __init__(self, use_cuda=True, use_walldetector=False,
+    def __init__(self, use_cuda=True, use_walldetector=True,
         num_action_per_item=2):
         RetinaNetDetector.__init__(
             self,
@@ -84,6 +84,7 @@ class SPANetDetector(RetinaNetDetector):
         print('Loaded {}SPANet'.format('Dense' if self.use_densenet else ''))
 
         if self.use_cuda:
+            print("Use cuda")
             if not self.use_walldetector:
                 ckpt = torch.load(
                     os.path.expanduser(conf.spanet_checkpoint))
@@ -97,7 +98,8 @@ class SPANetDetector(RetinaNetDetector):
                     map_location='cpu')
             else:
                 ckpt = torch.load(
-                    os.path.expanduser(conf.spanet_wall_checkpoint))
+                    os.path.expanduser(conf.spanet_wall_checkpoint),
+                    map_location='cpu')
 
         self.spanet.load_state_dict(ckpt['net'])
         self.spanet.eval()
@@ -108,30 +110,31 @@ class SPANetDetector(RetinaNetDetector):
             transforms.ToTensor(),
         ])
 
-    # def detect_objects(self):
-    #     # Get DetectedItems using SPANet
-    #     detected_items = RetinaNetDetector.detect_objects(self)
-
-    #     if self.wall_detector is None:
-    #         return detected_items
-
-    #     # Register all UV Points in wall detector
-    #     self.wall_detector.register_items(detected_items)
-
-    #     for item in detected_items:
-    #         wall_type = self.wall_detector.classify(item, self.img_msg, self.depth_img_msg)
-
-    #         if wall_type != WallClass.kUNKNOWN:
-    #             print("Item ID: %d" % item.marker_id)
-    #             print("Wall Type: " + str(wall_type))
-    #             print()
+    # Entry point to initialize any annotation function with all boxes
+    def annotation_initialization(self, boxes):
+        if self.wall_detector is None:
+            return None
+        # Register all UV Points in wall detector
+        self.wall_detector.register_items(boxes)
 
 
-    #     return detected_items
+    # Entry point to annotate individual boxes with arbitrary data
+    def annotate_box(self, box):
+        if self.wall_detector is None:
+            return None
+
+        wall_type = self.wall_detector.classify(box, self.img_msg, self.depth_img_msg)
+
+        if wall_type == WallClass.kNEAR_OBJ:
+            return torch.tensor([[0., 1., 0.]])
+        elif wall_type == kON_OBJ:
+            return torch.tensor([[0., 0., 1.]])
+
+        return torch.tensor([[1., 0., 0.]])
 
     def get_skewering_pose(
             self, txmin, txmax, tymin, tymax, width,
-            height, img_msg, t_class_name):
+            height, img_msg, t_class_name, annotation):
         """
         @return list of skewering position, angle,
         and other information for each detected item in the image.
@@ -142,7 +145,7 @@ class SPANetDetector(RetinaNetDetector):
             if dim == 0:
                 return None, None, None
         positions, angles, actions, scores, rotations = self.publish_spanet(
-            cropped_img, t_class_name, True)
+            cropped_img, t_class_name, True, annotation)
 
         info_maps = [dict(
             action=action,
@@ -153,7 +156,7 @@ class SPANetDetector(RetinaNetDetector):
 
         return positions, angles, info_maps
 
-    def publish_spanet(self, sliced_img, identity, actuallyPublish=False):
+    def publish_spanet(self, sliced_img, identity, actuallyPublish=False, loc_type=None):
         img_org = PILImage.fromarray(sliced_img.copy())
         ratio = float(self.target_size / max(img_org.size))
         new_size = tuple([int(x * ratio) for x in img_org.size])
@@ -164,7 +167,7 @@ class SPANetDetector(RetinaNetDetector):
         img.paste(img_org, pads)
         transform = transforms.Compose([transforms.ToTensor()])
         pred_vector, _ = self.spanet(
-            torch.stack([transform(img).cuda()]), None)
+            torch.stack([transform(img).cuda()]), None, loc_type)
 
         pred_vector = pred_vector.cpu().detach().numpy().flatten()
 
