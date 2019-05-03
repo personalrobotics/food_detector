@@ -388,7 +388,7 @@ class WallDetector:
             # Majority Vote of Regions
             num_with_stuff = 0
             considered_regions = self._num_regions - len(excluded_regions)
-            if considered_regions > 0: # To prevent a error, but this should never happen if cirlces are good
+            if considered_regions > 0: # To prevent an error, but this should never happen if cirlces are good
                 for region in range(0,len(regions)):
                     if region not in excluded_regions:
                         if self._debug:
