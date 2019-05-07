@@ -151,8 +151,8 @@ class SPANetDetector(RetinaNetDetector):
             action=action,
             uv=[float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0],
             score=round(float(score),2),
-            rotation=float(rotation)) for rotation, action, score in zip(
-                rotations, actions, scores)]
+            rotation=float(rotation + angle)) for rotation, angle, action, score in zip(
+                rotations, angles, actions, scores)]
 
         return positions, angles, info_maps
 
