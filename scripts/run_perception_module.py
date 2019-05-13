@@ -12,7 +12,7 @@ from pose_estimators.marker_manager import MarkerManager
 import food_detector.ada_feeding_demo_config as conf
 from food_detector.food_detector import FoodDetector
 from food_detector.retinanet_detector import RetinaNetDetector
-from food_detector.action_detector import ActionDetector
+from food_detector.spanet_detector import SPANetDetector
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -28,8 +28,10 @@ if __name__ == '__main__':
         pose_estimator = RetinaNetDetector(use_cuda=True, node_name=rospy.get_name())
     elif args.demo_type == "spnet":
         pose_estimator = FoodDetector(use_cuda=conf.use_cuda, node_name=rospy.get_name())
+    elif args.demo_type == "spanet":
+        pose_estimator = SPANetDetector(use_cuda = conf.use_cuda)
     else:
-        pose_estimator = ActionDetector(use_cuda = conf.use_cuda)
+        raise ValueError("Unknown demo type")
 
     if conf.use_cuda:
         os.environ['CUDA_VISIBLE_DEVICES'] = conf.gpus
@@ -39,7 +41,7 @@ if __name__ == '__main__':
         marker_type=Marker.CUBE,
         scale=[0.01, 0.01, 0.01],
         color=[0.5, 1.0, 0.5, 0.1],
-        count_items=False)  # spnet handles this internally
+        count_items=False)  # spnet and spanet handles this internally
 
     perception_module = PerceptionModule(
         pose_estimator=pose_estimator,

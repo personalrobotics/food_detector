@@ -31,6 +31,9 @@ label_map = os.path.join(
 spanet_checkpoint = os.path.join(
     bsp_path,
     'checkpoint/spanet_ckpt.pth')
+spanet_wall_checkpoint = os.path.join(
+    bsp_path,
+    'checkpoint/spanet_with_wall_ckpt.pth')
 
 pred_position = [0.5, 0.5]
 
