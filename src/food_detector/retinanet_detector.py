@@ -96,7 +96,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
     def find_closest_box_and_update(self, x, y, angle, class_name,
         tolerance=70):
         """
-        Finds ths closest bounding box in the current list and
+        Finds the closest bounding box in the current list and
         updates it with the provided x, y
         @param x: Skewering x pixel position in 2D image
         @param y: Skewering y pixel position in 2D image
