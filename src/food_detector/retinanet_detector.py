@@ -98,7 +98,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         tolerance=70):
         """
         Finds the closest bounding box in the current list and
-        updates it with the provided x, y
+        updates it with the provided x, y, angle
         @param x: Skewering x pixel position in 2D image
         @param y: Skewering y pixel position in 2D image
         @param angle, Skewering angle
