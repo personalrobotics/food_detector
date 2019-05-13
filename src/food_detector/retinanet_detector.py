@@ -97,7 +97,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
     def find_closest_box_and_update(self, x, y, angle, class_name,
         tolerance=70):
         """
-        Finds ths closest bounding box in the current list and
+        Finds the closest bounding box in the current list and
         updates it with the provided x, y
         @param x: Skewering x pixel position in 2D image
         @param y: Skewering y pixel position in 2D image
@@ -148,7 +148,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             print("Adding a new box with id {} for {}".format(
                 matched_id, class_name))
 
-        return matched_id
+        return matched_id, self.detected_item_boxes[class_name][matched_id]
 
     def get_index_of_class_name(self, class_name):
         for index, name in self.label_map.items():
@@ -288,9 +288,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 t_class_name = self.label_map[t_class]
             if force_food:
                 t_class_name = force_food_name
-            class_box_id = self.find_closest_box_and_update(
-                        (txmin + txmax) / 2.0, (tymin + tymax) / 2.0,
-                        t_class_name)
+            class_box_id, _, _, _ = self.find_closest_box_and_update(
+                        uv[0], uv[1], t_class_name)
 
             box_labeled['id'] = class_box_id
 
@@ -314,7 +313,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
             ### Begin Annotation
             box_labeled = {}
-            box_labeled['id'] = self.find_closest_box_and_update(
+            box_labeled['id'], _, _, _ = self.find_closest_box_and_update(
                         (txmin + txmax) / 2.0, (tymin + tymax) / 2.0,
                         t_class_name)
             box_labeled['uv'] = [float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0]
@@ -335,14 +334,11 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     t_class_name_current = t_class_name + "+" + skewer_info["action"]
 
                 # Update Skewering Pose and Angle from past data
-                txoff = (txmax - txmin) * skewer_xy[0]
-                tyoff = (tymax - tymin) * skewer_xy[1]
-                class_box_id = self.find_closest_box_and_update(
-                        txoff, tyoff, skewer_angle,
+                tx = (txmax - txmin) * skewer_xy[0] + txmin
+                ty = (tymax - tymin) * skewer_xy[1] + tymin
+                class_box_id, tx, ty, this_ang = self.find_closest_box_and_update(
+                        tx, ty, skewer_angle,
                         t_class_name_current)
-                txoff = self.detected_item_boxes[class_name][class_box_id][0]
-                tyoff = self.detected_item_boxes[class_name][class_box_id][1]
-                this_ang = self.detected_item_boxes[class_name][class_box_id][2]
 
                 cropped_depth = depth_img[
                     int(max(tymin, 0)):int(min(tymax, height)),
@@ -353,7 +349,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     continue
 
                 if spBoxIdx >= 0:
-                    pt = [txmin + txoff, tymin + tyoff]
+                    pt = [tx, ty]
 
                     coff = 60
                     cropped_depth = depth_img[
