@@ -31,7 +31,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             depth_image_topic='/camera/aligned_depth_to_color/image_raw',
             camera_info_topic='/camera/color/camera_info',
             detection_frame='camera_color_optical_frame',
-            timeout=1.0):
+            timeout=1.0,
+            ema_alpha=1.0):
 
         PoseEstimator.__init__(self)
         CameraSubscriber.__init__(
@@ -43,6 +44,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             camera_info_topic=camera_info_topic)
         ImagePublisher.__init__(self, node_name)
 
+        print(retinanet_checkpoint)
         self.retinanet, self.retinanet_transform, self.encoder = \
             load_retinanet(use_cuda, retinanet_checkpoint)
         self.label_map = load_label_map(label_map_file)
@@ -57,6 +59,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         self.camera_tilt = camera_tilt
         self.camera_to_table = camera_to_table
         self.frame = frame
+        self.ema_alpha = ema_alpha
 
         # Keeps track of previously detected items'
         # center of bounding boxes, class names and associate each
@@ -65,6 +68,9 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         self.detected_item_boxes = dict()
         # for food in self.selector_food_names:
             # self.detected_item_boxes[food] = dict()
+
+        # This affects all items
+        self.z = None
 
     def create_detected_item(self, rvec, tvec, t_class_name, box_id,
                              db_key='food_item', info_map=dict()):
@@ -90,7 +96,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         return [[0.5, 0.5]], [0.0], [dict()]
 
     def find_closest_box_and_update(self, x, y, class_name,
-        tolerance=70):
+        tolerance=70, angle=None, info=None):
         """
         Finds ths closest bounding box in the current list and
         updates it with the provided x, y
@@ -109,7 +115,10 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         if class_name not in self.detected_item_boxes:
             self.detected_item_boxes[class_name] = dict()
 
-        for bid, (bx, by) in self.detected_item_boxes[class_name].iteritems():
+        for bid in self.detected_item_boxes[class_name].keys():
+            item = self.detected_item_boxes[class_name][bid]
+            bx, by = item[0], item[1]
+
             distance = np.linalg.norm(np.array([x, y]) - np.array([bx, by]))
             largest_id = max(largest_id, bid)
             if distance >= tolerance:
@@ -128,9 +137,29 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 self.detected_item_boxes[class_name].pop(mid)
 
         if matched_id is not None:
-            self.detected_item_boxes[class_name][matched_id] = (x, y)
+            # Perform EMA
+            alpha = self.ema_alpha
+            old_data = self.detected_item_boxes[class_name][matched_id]
+            newx = alpha * x + (1.0 - alpha) * old_data[0]
+            newy = alpha * y + (1.0 - alpha) * old_data[1]
+            if angle is None:
+                self.detected_item_boxes[class_name][matched_id] = (newx, newy)
+            else:
+                newa = alpha * angle + (1.0 - alpha) * old_data[2]
+                print(old_data, newx, newy, newa, alpha)
+                self.detected_item_boxes[class_name][matched_id] = (newx, newy, newa)
+            if info is not None:
+                if 'rotation' in info:
+                    rotation = alpha * info['rotation'] + (1.0 - alpha) * old_data[3]
+                    self.detected_item_boxes[class_name][matched_id] = (newx, newy, newa, rotation)
         else:
-            self.detected_item_boxes[class_name][largest_id + 1] = (x, y)
+            if angle is None:
+                self.detected_item_boxes[class_name][largest_id + 1] = (x, y)
+            else:
+                self.detected_item_boxes[class_name][largest_id + 1] = (x, y, angle)
+            if info is not None:
+                if 'rotation' in info:
+                    self.detected_item_boxes[class_name][largest_id + 1] = (x, y, angle, info['rotation'])
             matched_id = largest_id + 1
             print("Adding a new box with id {} for {}".format(
                 matched_id, class_name))
@@ -150,6 +179,11 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         if depth is None or len(depth) == 0:
             return -1
         z0 = np.mean(depth)
+        if self.z is None:
+            self.z = z0
+        else:
+            z0 = self.ema_alpha * z0 + (1.0 - self.ema_alpha) * self.z
+            self.z = z0
         return z0 / 1000.0  # mm to m
 
     # Entry point to initialize any annotation function with all boxes
@@ -275,6 +309,10 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 t_class_name = self.label_map[t_class]
             if force_food:
                 t_class_name = force_food_name
+
+#            if t_class_name != 'strawberry':
+#                continue
+
             class_box_id = self.find_closest_box_and_update(
                         (txmin + txmax) / 2.0, (tymin + tymax) / 2.0,
                         t_class_name)
@@ -295,6 +333,10 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 t_class_name = force_food_name
                 t_class = self.get_index_of_class_name(t_class_name)
 
+          #  if t_class_name != 'strawberry':
+          #      continue
+            print(t_class_name)
+
             txmin, tymin, txmax, tymax = boxes[box_idx].numpy() - bbox_offset
             if (txmin < 0 or tymin < 0 or txmax > width or tymax > height):
                 continue
@@ -307,7 +349,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             box_labeled['uv'] = [float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0]
             annotation = self.annotate_box(box_labeled)
             ### End Annotation
-            
+
             skewer_xys, skewer_angles, skewer_infos = self.get_skewering_pose(
                     txmin, txmax, tymin, tymax, width, height,
                     copied_img_msg, t_class_name, annotation)
@@ -321,10 +363,16 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 if "action" in skewer_info:
                     t_class_name_current = t_class_name + "+" + skewer_info["action"]
 
-                class_box_id = self.find_closest_box_and_update(
-                        (txmin + txmax) / 2.0, (tymin + tymax) / 2.0,
-                        t_class_name_current)
+                txoff = (txmax - txmin) * skewer_xy[0]
+                tyoff = (tymax - tymin) * skewer_xy[1]
+                pt = [txmin + txoff, tymin + tyoff]
 
+                class_box_id = self.find_closest_box_and_update(
+                        pt[0], pt[1],
+                        t_class_name_current,
+                        angle=skewer_angle,
+                        info=skewer_info)
+                pt[0], pt[1], this_ang, skewer_info['rotation'] = self.detected_item_boxes[t_class_name_current][class_box_id]
                 cropped_depth = depth_img[
                     int(max(tymin, 0)):int(min(tymax, height)),
                     int(max(txmin, 0)):int(min(txmax, width))]
@@ -334,12 +382,12 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     continue
 
                 if spBoxIdx >= 0:
-                    this_pos = skewer_xy
+                    # this_pos = skewer_xy
                     this_ang = skewer_angle
 
-                    txoff = (txmax - txmin) * this_pos[0]
-                    tyoff = (tymax - tymin) * this_pos[1]
-                    pt = [txmin + txoff, tymin + tyoff]
+                    # txoff = (txmax - txmin) * this_pos[0]
+                    # tyoff = (tymax - tymin) * this_pos[1]
+                    # pt = [txmin + txoff, tymin + tyoff]
 
                     coff = 60
                     cropped_depth = depth_img[
@@ -348,10 +396,11 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     current_z0 = self.calculate_depth(cropped_depth)
                     if (current_z0 < 0):
                         current_z0 = z0
-
+                    print("current_z0", current_z0)
                     x, y, z, w = quaternion_from_euler(
-                        0, 0., this_ang + 90.)
+                        0, 0., np.deg2rad(this_ang))
                     rvec = np.array([x, y, z, w])
+                    print("Retinanet", rvec)
 
                     tz = current_z0
                     tx = (tz / cam_fx) * (pt[0] - cam_cx)
@@ -368,6 +417,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
         self.visualize_detections(
             img, chosen_boxes, chosen_scores, chosen_labels, bbox_offset)
+
         return detections
 
     def visualize_detections(self, img, boxes, scores, labels, bbox_offset):

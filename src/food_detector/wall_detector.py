@@ -431,8 +431,8 @@ class WallDetector:
                 else:
                     food_class = WallClass.kNEAR_OBJ
 
-        if self._debug:
-            print("FOOD CLASS " + str(food_class))
+        # if self._debug:
+        print("FOOD CLASS " + str(food_class))
 
         return food_class
 
@@ -477,6 +477,6 @@ class WallDetector:
             if item['id'] not in self._food_class_list:
                 self._food_class_list[item['id']] = []
         if self._debug:
-            print("Registered UV Point: " + str(uv))
+            print("Registered UV Point: " + str(item['uv']))
 
 

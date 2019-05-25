@@ -22,7 +22,7 @@ from pose_estimators.utils import CameraSubscriber
 from bite_selection_package.model.spanet import SPANet
 from bite_selection_package.model.spanet import DenseSPANet
 from bite_selection_package.config import spanet_config
-#from bite_selection_package.utils.visualize_spanet import draw_image
+from bite_selection_package.utils.visualize_spanet import draw_image
 
 from retinanet_detector import RetinaNetDetector
 from image_publisher import ImagePublisher
@@ -57,7 +57,7 @@ class SPANetDetector(RetinaNetDetector):
         self.use_walldetector = use_walldetector
 
         if self.use_walldetector:
-            self.wall_detector = WallDetector()
+            self.wall_detector = WallDetector() # Toggle debug
         else:
             self.wall_detector = None
 
@@ -86,6 +86,7 @@ class SPANetDetector(RetinaNetDetector):
         if self.use_cuda:
             print("Use cuda")
             if not self.use_walldetector:
+                print("-----------------------------------" + conf.spanet_checkpoint)
                 ckpt = torch.load(
                     os.path.expanduser(conf.spanet_checkpoint))
             else:
@@ -126,11 +127,11 @@ class SPANetDetector(RetinaNetDetector):
         wall_type = self.wall_detector.classify(box, self.img_msg, self.depth_img_msg)
 
         if wall_type == WallClass.kNEAR_OBJ:
-            return torch.tensor([[0., 1., 0.]])
-        elif wall_type == kON_OBJ:
-            return torch.tensor([[0., 0., 1.]])
+            return dict(tensor=torch.tensor([[0., 1., 0.]]), type=WallClass.kNEAR_OBJ)
+        elif wall_type == WallClass.kON_OBJ:
+            return dict(tensor=torch.tensor([[0., 0., 1.]]), type=WallClass.kON_OBJ)
 
-        return torch.tensor([[1., 0., 0.]])
+        return dict(tensor=torch.tensor([[1., 0., 0.]]), type=WallClass.kISOLATED)
 
     def get_skewering_pose(
             self, txmin, txmax, tymin, tymax, width,
@@ -145,13 +146,14 @@ class SPANetDetector(RetinaNetDetector):
             if dim == 0:
                 return None, None, None
         positions, angles, actions, scores, rotations = self.publish_spanet(
-            cropped_img, t_class_name, True, annotation)
+            cropped_img, t_class_name, True, annotation['tensor'])
 
         info_maps = [dict(
             action=action,
             uv=[float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0],
             score=round(float(score),2),
-            rotation=float(rotation + angle)) for rotation, angle, action, score in zip(
+            annotation=str(annotation['type']),
+            rotation=float(rotation)) for rotation, angle, action, score in zip(
                 rotations, angles, actions, scores)]
 
         return positions, angles, info_maps
@@ -178,15 +180,16 @@ class SPANetDetector(RetinaNetDetector):
         position = np.divide(p1 + p2, 2.0)
 
         # Offset if necessary
-        fudge_offset = np.array([[0, 0]]).reshape(position.shape)
-        position = position + fudge_offset
+        # fudge_offset = np.array([[-0.2, 0.8]]).reshape(position.shape)
+        # position = position + fudge_offset
+        # print("Position After: ", position)
 
         angle = np.degrees(np.arctan2(p2[1] - p1[1], p2[0] - p1[0]))
 
         success_rates = pred_vector[4:]
         order = np.argsort(success_rates * -1)
 
-#        self.visualize_spanet(img, pred_vector)
+        self.visualize_spanet(img, pred_vector)
 
         positions = [position] * self.num_action_per_item
         angles = [angle] * self.num_action_per_item
@@ -207,9 +210,12 @@ class SPANetDetector(RetinaNetDetector):
             best_success_rates += [success_rate]
             rotations += [rotation]
 
-        return positions, angles, action_names, best_success_rates, rotations
+        #return [positions[0]], [angles[0]], ['tilted-vertical'], [1.0], [90.0]
+        return [positions[0]], [angles[0]], [action_names[0]], [best_success_rates[0]], [rotations[0]]
+        # return [positions[0]], [angles[0]], ['tilted-vertical'], [best_success_rates[0]], [rotations[0]]
 
-#    def visualize_spanet(self, image, pred_vector):
-#        img = draw_image(image, pred_vector)
-#        msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
-#        self.pub_spanet_img.publish(msg_img)
+
+    def visualize_spanet(self, image, pred_vector):
+        img = draw_image(image, pred_vector)
+        msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
+        self.pub_spanet_img.publish(msg_img)

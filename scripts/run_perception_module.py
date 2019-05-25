@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     marker_manager = MarkerManager(
         marker_type=Marker.CUBE,
-        scale=[0.01, 0.01, 0.01],
+        scale=[0.05, 0.01, 0.01],
         color=[0.5, 1.0, 0.5, 0.1],
         count_items=False)  # spnet and spanet handles this internally
 
@@ -48,7 +48,7 @@ if __name__ == '__main__':
         marker_manager=marker_manager,
         detection_frame_marker_topic=None,
         detection_frame=conf.camera_tf,
-        destination_frame=conf.camera_tf,
+        destination_frame=conf.destination_frame,
         purge_all_markers_per_update=True)
 
     run_detection(rospy.get_name(), conf.frequency, perception_module)
