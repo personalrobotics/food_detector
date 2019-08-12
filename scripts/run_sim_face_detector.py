@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Example script for running a perception module
 
 from pose_estimators.perception_module import PerceptionModule
