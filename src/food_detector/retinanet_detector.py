@@ -13,18 +13,19 @@ from tf.transformations import quaternion_matrix, quaternion_from_euler
 
 from image_publisher import ImagePublisher
 from util import load_retinanet, load_label_map
+import ada_feeding_demo_config as conf
 
 
 class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
     def __init__(
             self,
-            retinanet_checkpoint,
             use_cuda,
-            label_map_file,
-            camera_tilt,
-            camera_to_table,
-            frame,
             node_name=rospy.get_name(),
+            retinanet_checkpoint=conf.checkpoint,
+            label_map_file=conf.label_map,
+            camera_tilt=1e-5,
+            camera_to_table=conf.camera_to_table,
+            frame=conf.camera_tf,
             image_topic='/camera/color/image_raw/compressed',
             image_msg_type='compressed',
             depth_image_topic='/camera/aligned_depth_to_color/image_raw',
@@ -79,14 +80,12 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             detected_time=rospy.Time.now())
 
     # Inherited classes change this
-    # def get_skewering_pose(self, txmin, txmax, tymin, tymax, width, height,
-    #                        img_msg, t_class_name):
-    #     """
-    #     @return skewering position and angle in the image.
-    #     """
-    #     center_x = (txmin + txmax) / 2.0
-    #     center_y = (tymin + tymax) / 2.0
-    #     return (center_x, center_y), 0.0
+    def get_skewering_pose(self, txmin, txmax, tymin, tymax, width, height,
+                           img_msg, t_class_name):
+        """
+        @return skewering position and angle in the image.
+        """
+        return [0.5, 0.5], 0.0
 
     def find_closest_box_and_update(self, x, y, class_name, tolerance=70):
         """
