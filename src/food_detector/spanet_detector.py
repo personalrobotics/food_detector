@@ -168,7 +168,7 @@ class SPANetDetector(RetinaNetDetector):
         img = PILImage.new('RGB', (self.target_size, self.target_size))
         img.paste(img_org, pads)
         transform = transforms.Compose([transforms.ToTensor()])
-        pred_vector, _ = self.spanet(
+        pred_vector, features = self.spanet(
             torch.stack([transform(img).cuda()]), None, loc_type)
 
         pred_vector = pred_vector.cpu().detach().numpy().flatten()
@@ -210,10 +210,13 @@ class SPANetDetector(RetinaNetDetector):
             best_success_rates += [success_rate]
             rotations += [rotation]
 
-        #return [positions[0]], [angles[0]], ['tilted-vertical'], [1.0], [90.0]
-        return [positions[0]], [angles[0]], [action_names[0]], [best_success_rates[0]], [rotations[0]]
-        # return [positions[0]], [angles[0]], ['tilted-vertical'], [best_success_rates[0]], [rotations[0]]
+        # TODO: Confirm name of parameter
+        if not rospy.has_param('/spanet/include_features'):
+            features = None
+        elif not rospy.get_param('/spanet/include_features'):
+            features = None
 
+        return [positions[0]], [angles[0]], [action_names[0]], [best_success_rates[0]], [rotations[0], [features]]
 
     def visualize_spanet(self, image, pred_vector):
         img = draw_image(image, pred_vector)
