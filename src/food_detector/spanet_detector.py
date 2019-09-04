@@ -210,10 +210,7 @@ class SPANetDetector(RetinaNetDetector):
             best_success_rates += [success_rate]
             rotations += [rotation]
 
-        # TODO: Confirm name of parameter
-        if not rospy.has_param('/spanet/include_features'):
-            features = None
-        elif not rospy.get_param('/spanet/include_features'):
+        if not rospy.get_param('/spanet/includeFeatures'):
             features = None
 
         return [positions[0]], [angles[0]], [action_names[0]], [best_success_rates[0]], [rotations[0], [features]]
