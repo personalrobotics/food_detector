@@ -35,7 +35,7 @@ from retinanet_detector import RetinaNetDetector
 
 # A pose estimator for detecting object and skewering pose
 # using SPNet
-class FoodDetector(RetinaNetDetector):
+class SPNetDetector(RetinaNetDetector):
     def __init__(self, node_name, use_cuda=True):
         RetinaNetDetector.__init__(
             self,
