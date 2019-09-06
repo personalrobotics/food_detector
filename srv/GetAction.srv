@@ -1,0 +1,6 @@
+float32[] features
+---
+# Action
+int8 a_t
+# Probability distribution of choosing each action
+float32[] p_t
