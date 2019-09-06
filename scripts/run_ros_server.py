@@ -41,9 +41,11 @@ def handle_publish_loss(req):
 
 if __name__ == '__main__':
     rospy.init_node(SERVER_NAME)
-    rospy.Service('GetAction', srv.GetAction, handle_get_action)
-    rospy.Service('PublishLoss', srv.PublishLoss, handle_publish_loss)
+    rospy.Service('GetAction', GetAction, handle_get_action)
+    rospy.Service('PublishLoss', PublishLoss, handle_publish_loss)
     try:
+        print('Server running')
         rospy.spin()
     except KeyboardInterrupt:
-        print('Shutting down {}...'.format(SERVER_NAME))
+        pass
+    print('Shutting down {}...'.format(SERVER_NAME))
