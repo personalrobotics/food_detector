@@ -12,8 +12,6 @@
 
   <depend>python</depend>
 
-  <build_depend>message_generation</build_depend>
-
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>pose_estimators</exec_depend>
   <exec_depend>pytorch_retinanet</exec_depend>
@@ -23,7 +21,6 @@
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>torch</exec_depend>
-  <exec_depend>message_runtime</exec_depend>
   <exec_depend>conban_spanet</exec_depend>
 
 </package>
