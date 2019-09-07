@@ -145,16 +145,17 @@ class SPANetDetector(RetinaNetDetector):
         for dim in cropped_img.shape:
             if dim == 0:
                 return None, None, None
-        positions, angles, actions, scores, rotations = self.publish_spanet(
+        positions, angles, actions, scores, rotations, features = self.publish_spanet(
             cropped_img, t_class_name, True, annotation['tensor'])
 
         info_maps = [dict(
+            features=feature,
             action=action,
             uv=[float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0],
             score=round(float(score),2),
             annotation=str(annotation['type']),
-            rotation=float(rotation)) for rotation, angle, action, score in zip(
-                rotations, angles, actions, scores)]
+            rotation=float(rotation)) for rotation, angle, action, score, feature in zip(
+                rotations, angles, actions, scores, features)]
 
         return positions, angles, info_maps
 
@@ -210,10 +211,10 @@ class SPANetDetector(RetinaNetDetector):
             best_success_rates += [success_rate]
             rotations += [rotation]
 
-        if not rospy.get_param('/spanet/includeFeatures'):
+        if not rospy.get_param('/spanetIncludeFeatures'):
             features = None
 
-        return [positions[0]], [angles[0]], [action_names[0]], [best_success_rates[0]], [rotations[0], [features]]
+        return [positions[0]], [angles[0]], [action_names[0]], [best_success_rates[0]], [rotations[0]], [features]
 
     def visualize_spanet(self, image, pred_vector):
         img = draw_image(image, pred_vector)
