@@ -407,8 +407,9 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     ty = (tz / cam_fy) * (pt[1] - cam_cy)
                     tvec = np.array([tx, ty, tz])
 
+                    # NOTE: modified to t_class_name
                     detections.append(self.create_detected_item(
-                        rvec, tvec, t_class_name_current, class_box_id, info_map=skewer_info))
+                        rvec, tvec, t_class_name, class_box_id, info_map=skewer_info))
 
                     chosen_boxes.append(boxes[box_idx])
                     chosen_labels.append(

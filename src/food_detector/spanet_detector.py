@@ -37,7 +37,7 @@ class SPANetDetector(RetinaNetDetector):
     """
 
     def __init__(self, use_cuda=True, use_walldetector=True,
-        num_action_per_item=2):
+        num_action_per_item=1):
         RetinaNetDetector.__init__(
             self,
             retinanet_checkpoint=conf.checkpoint,
@@ -149,13 +149,13 @@ class SPANetDetector(RetinaNetDetector):
             cropped_img, t_class_name, True, annotation['tensor'])
 
         info_maps = [dict(
-            features=feature,
+            features=features,
             action=action,
             uv=[float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0],
             score=round(float(score),2),
             annotation=str(annotation['type']),
-            rotation=float(rotation)) for rotation, angle, action, score, feature in zip(
-                rotations, angles, actions, scores, features)]
+            rotation=float(rotation)) for rotation, angle, action, score in zip(
+                rotations, angles, actions, scores)]
 
         return positions, angles, info_maps
 
@@ -170,9 +170,12 @@ class SPANetDetector(RetinaNetDetector):
         img.paste(img_org, pads)
         transform = transforms.Compose([transforms.ToTensor()])
         pred_vector, features = self.spanet(
-            torch.stack([transform(img).cuda()]), None, loc_type)
+            torch.stack([transform(img).cuda()]), None, loc_type.cuda())
 
         pred_vector = pred_vector.cpu().detach().numpy().flatten()
+        features_flat = features.cpu().detach().numpy().flatten().tolist()
+        # Add Bias
+        features_flat.insert(0, 1.0)
 
         # pred_vector: [p1_row, p1_col, p2_row, p2_col, a1_success_rate, ..., a6_suceess_rate]
         p1 = pred_vector[:2]
@@ -211,10 +214,12 @@ class SPANetDetector(RetinaNetDetector):
             best_success_rates += [success_rate]
             rotations += [rotation]
 
-        if not rospy.get_param('/spanetIncludeFeatures'):
-            features = None
+        if not rospy.has_param('/spanetIncludeFeatures'):
+            features_flat = None
+        elif not rospy.get_param('/spanetIncludeFeatures'):
+            features_flat = None
 
-        return [positions[0]], [angles[0]], [action_names[0]], [best_success_rates[0]], [rotations[0]], [features]
+        return [positions[0]], [angles[0]], [action_names[0]], [best_success_rates[0]], [rotations[0]], features_flat
 
     def visualize_spanet(self, image, pred_vector):
         img = draw_image(image, pred_vector)
