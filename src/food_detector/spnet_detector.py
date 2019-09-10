@@ -35,7 +35,7 @@ from retinanet_detector import RetinaNetDetector
 
 # A pose estimator for detecting object and skewering pose
 # using SPNet
-class FoodDetector(RetinaNetDetector):
+class SPNetDetector(RetinaNetDetector):
     def __init__(self, node_name, use_cuda=True):
         RetinaNetDetector.__init__(
             self,
@@ -229,9 +229,13 @@ class FoodDetector(RetinaNetDetector):
         """
         @return skewering position and angle in the image.
         """
+        """
+        Temporarily Disable for Demo
         cropped_img = img_msg[int(max(tymin, 0)):int(min(tymax, height)),
                               int(max(txmin, 0)):int(min(txmax, width))]
 
         sp_pose, sp_angle = self.publish_spnet(cropped_img, t_class_name, True)
         return sp_pose, sp_angle
+        """
 
+        return [0.5, 0.5], 0.0
