@@ -9,10 +9,10 @@ from pose_estimators.run_perception_module import run_detection
 from pose_estimators.perception_module import PerceptionModule
 from pose_estimators.marker_manager import MarkerManager
 
-import food_detector.ada_feeding_demo_config as conf
-from food_detector.food_detector import FoodDetector
+from food_detector import SPNetDetector, RetinaNetDetector, SPANetDetector
 from food_detector.retinanet_detector import RetinaNetDetector
-from food_detector.spanet_detector import SPANetDetector
+
+import food_detector.ada_feeding_demo_config as conf
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -21,15 +21,16 @@ if __name__ == '__main__':
         "--demo-type", choices=['spnet', 'spanet', 'retinanet'],
         required=True)
     args = parser.parse_args(rospy.myargv()[1:])
+    rospy.init_node('food_detector')
 
     rospy.init_node('food_detector')
 
     if args.demo_type == 'retinanet':
         pose_estimator = RetinaNetDetector(use_cuda=True, node_name=rospy.get_name())
     elif args.demo_type == "spnet":
-        pose_estimator = FoodDetector(use_cuda=conf.use_cuda, node_name=rospy.get_name())
+        pose_estimator = SPNetDetector(use_cuda=conf.use_cuda, node_name=rospy.get_name())
     elif args.demo_type == "spanet":
-        pose_estimator = SPANetDetector(use_cuda = conf.use_cuda)
+        pose_estimator = SPANetDetector(use_cuda=conf.use_cuda)
     else:
         raise ValueError("Unknown demo type")
 
