@@ -292,6 +292,9 @@ class WallDetector:
 
         # calculate x,y coordinate of center fruit
         M = cv2.moments(hull)
+        if M["m00"] == 0:
+            # No proper moments
+            return None, None
         cX = int(M["m10"] / M["m00"])
         cY = int(M["m01"] / M["m00"])
         extended_region = []
@@ -460,6 +463,10 @@ class WallDetector:
 
         # Create Sub-regions
         region, region_median = self._subregions(mask, height, plate_r)
+        if region is None:
+            if self._debug:
+                print("Warning, no proper subregions!")
+            return WallClass.kUNKNOWN
 
         food_class = self._decide(near_rim, near_food_item, region, region_median, plate_uv, plate_r)
 

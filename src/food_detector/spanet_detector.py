@@ -28,7 +28,7 @@ from retinanet_detector import RetinaNetDetector
 from image_publisher import ImagePublisher
 import spa_demo_config as conf
 from wall_detector import WallDetector, WallClass
-
+N_FEATURES = 2048 if spanet_config.n_features==None else spanet_config.n_features
 ACTIONS = ['vertical', 'tilted-vertical', 'tilted-angled']
 
 class SPANetDetector(RetinaNetDetector):
@@ -64,7 +64,7 @@ class SPANetDetector(RetinaNetDetector):
         self.use_densenet = spanet_config.use_densenet
         self.target_position = np.array([320, 240])
 
-        self.final_size = 512
+        self.final_size = N_FEATURES  # DEBUG: XM: Changed this size from 512 to N_FEATURES
         self.target_size = 144
 
         self.num_action_per_item = num_action_per_item
