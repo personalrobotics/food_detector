@@ -9,7 +9,7 @@ from pose_estimators.run_perception_module import run_detection
 from pose_estimators.perception_module import PerceptionModule
 from pose_estimators.marker_manager import MarkerManager
 
-from food_detector import FoodDetector
+from food_detector.food_detector import FoodDetector
 from food_detector.retinanet_detector import RetinaNetDetector
 import food_detector.ada_feeding_demo_config as conf
 
@@ -20,6 +20,8 @@ if __name__ == '__main__':
         "--demo-type", choices=['spnet', 'action-score', 'retinanet'],
         required=True)
     args = parser.parse_args(rospy.myargv()[1:])
+
+    rospy.init_node("food_detector")
 
     if args.demo_type == 'retinanet':
         pose_estimator = RetinaNetDetector(use_cuda=True, node_name=rospy.get_name())

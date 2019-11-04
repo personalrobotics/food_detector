@@ -199,7 +199,13 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         cam_cy = camera_matrix[1, 2]
 
         z0 = (self.camera_to_table /
-              (np.cos(np.radians(90 - self.camera_tilt)) + 1e-10))
+              (np.cos(np.radians(90 - self.camera_tilt)) + 1e-10)) 
+        
+        # won't this become a very large number? 
+        # Does it mean to be:
+        #   z0 = (self.camera_to_table /
+        #       (np.cos(np.radians(self.camera_tilt)) + 1e-10)) ?????
+
         # z0 = self.camera_to_table
 
         detections = list()
