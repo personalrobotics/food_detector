@@ -15,7 +15,6 @@ d = generate_distutils_setup(
         'pose_estimators',
         'pytorch_retinanet',
         'bite_selection_package',
-        'conban_spanet'
     ]
 )
 setup(**d)
