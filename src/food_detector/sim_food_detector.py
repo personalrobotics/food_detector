@@ -10,9 +10,9 @@ class SimFoodDetector(PoseEstimator):
     def __init__(self, frame_id):
 
         # Pose at which the food is on the plate
-        pose1 = np.array([[1, 0, 0, 0.0],
-                          [0, 1, 0, -0.40],
-                          [0, 0, 1, 0.01],
+        pose1 = np.array([[1, 0, 0, 0.30],
+                          [0, 1, 0, -0.25],
+                          [0, 0, 1, 0.25],
                           [0, 0, 0, 1]])
         self.item1 = DetectedItem(
             frame_id=frame_id,
@@ -23,19 +23,19 @@ class SimFoodDetector(PoseEstimator):
             detected_time=rospy.Time.now(),
             info_map=dict(action="tilted-vertical", rotation=0.0, score=1.0, annotation='tv'))
 
-        # # Pose at which the food is on the plate
-        # pose2 = np.array([[1, 0, 0, 0.0],
-        #                   [0, 1, 0, -0.38],
-        #                   [0, 0, 1, 0.01],
-        #                   [0, 0, 0, 1]])
-        # self.item2 = DetectedItem(
-        #     frame_id=frame_id,
-        #     marker_namespace="cantaloupe",
-        #     marker_id=2,
-        #     db_key="food_item",
-        #     pose=pose2,
-        #     detected_time=rospy.Time.now(),
-        #     info_map=dict(action="vertical", rotation=90.0, score=1.0))
+        # Pose at which the food is on the plate
+        pose2 = np.array([[1, 0, 0, 0.25],
+                          [0, 1, 0, -0.29],
+                          [0, 0, 1, 0.25],
+                          [0, 0, 0, 1]])
+        self.item2 = DetectedItem(
+            frame_id=frame_id,
+            marker_namespace="cantaloupe",
+            marker_id=2,
+            db_key="food_item",
+            pose=pose2,
+            detected_time=rospy.Time.now(),
+            info_map=dict(action="vertical", rotation=90.0, score=1.0))
 
     def detect_objects(self):
         self.item1.detected_time = rospy.Time.now()
