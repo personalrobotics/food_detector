@@ -5,6 +5,8 @@ import os
 import json
 import numpy as np
 import rospy
+import yaml
+
 from tf import TransformListener
 from sensor_msgs.msg import Image
 import torch
@@ -37,7 +39,7 @@ class SPANetDetector(RetinaNetDetector):
     """
 
     def __init__(self, use_cuda=True, use_walldetector=True,
-        num_action_per_item=1):
+        num_action_per_item=1, image_topic='/camera/color/image_raw/compressed'):
         RetinaNetDetector.__init__(
             self,
             retinanet_checkpoint=conf.checkpoint,
@@ -46,7 +48,8 @@ class SPANetDetector(RetinaNetDetector):
             node_name=conf.node_name,
             camera_to_table=conf.camera_to_table,
             camera_tilt=1e-5,
-            frame=conf.camera_tf)
+            frame=conf.camera_tf,
+            image_topic=image_topic)
 
         self.listener = TransformListener()
         self.detection_frame = conf.camera_tf
@@ -68,6 +71,7 @@ class SPANetDetector(RetinaNetDetector):
         self.target_size = 144
 
         self.num_action_per_item = num_action_per_item
+        # print("num_action_per_item = ", num_action_per_item)
 
         self.pub_spanet_img = rospy.Publisher(
             '{}/spanet_image'.format(self.node_name),
@@ -124,7 +128,8 @@ class SPANetDetector(RetinaNetDetector):
         if self.wall_detector is None:
             return None
 
-        wall_type = self.wall_detector.classify(box, self.img_msg, self.depth_img_msg)
+        wall_type = WallClass.kISOLATED
+        # wall_type = self.wall_detector.classify(box, self.img_msg, self.depth_img_msg)
 
         if wall_type == WallClass.kNEAR_OBJ:
             return dict(tensor=torch.tensor([[0., 1., 0.]]), type=WallClass.kNEAR_OBJ)
@@ -135,7 +140,7 @@ class SPANetDetector(RetinaNetDetector):
 
     def get_skewering_pose(
             self, txmin, txmax, tymin, tymax, width,
-            height, img_msg, t_class_name, annotation):
+            height, img_msg, t_class_name, annotation, push_str):
         """
         @return list of skewering position, angle,
         and other information for each detected item in the image.
@@ -148,7 +153,11 @@ class SPANetDetector(RetinaNetDetector):
         positions, angles, actions, scores, rotations, features = self.publish_spanet(
             cropped_img, t_class_name, True, annotation['tensor'])
 
+        push_info = yaml.load(push_str)
+
         info_maps = [dict(
+            push_direction=push_info['push_direction'],
+            push_vec=push_info['push_vec'],
             features=features,
             action=action,
             uv=[float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0],
@@ -157,6 +166,29 @@ class SPANetDetector(RetinaNetDetector):
             rotation=float(rotation)) for rotation, angle, action, score in zip(
                 rotations, angles, actions, scores)]
 
+        # ## ------------------------------- new ------------------------------- ##
+        # position, angle, actions, scores, rotations, features = self.publish_spanet(
+        #     cropped_img, t_class_name, True, annotation['tensor'])
+
+        # info_map = dict(
+        #     features=features,
+        #     actions=actions,
+        #     uv=[float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0],
+        #     scores=[round(float(score),2) for score in scores],
+        #     annotation=str(annotation['type']), ## it's about wall?
+        #     ## this will fail "find_closest_box_and_update" methon in retinanet_detector.py 
+        #     rotations=[float(rotation) for rotation in rotations],
+        #     push=None)   ## or a vector that tell the robot which direction to push)   
+
+        #     ## in ReconfigurationManager, 
+        #     ## if the fooditem is continuous food like mash potato/potato salad, 
+        #     ## only consider scooping actions and ignore skewering actions
+        #     ## basically only threshold on scores of scooping actions then decide whether consider push or not.
+
+        #     ## SPANet will eventually tell that 
+        # ## ------------------------------- new ------------------------------- ##
+
+        # return position, angle, info_map
         return positions, angles, info_maps
 
     def publish_spanet(self, sliced_img, identity, actuallyPublish=False, loc_type=None):
@@ -176,6 +208,9 @@ class SPANetDetector(RetinaNetDetector):
         features_flat = features.cpu().detach().numpy().flatten().tolist()
         # Add Bias
         features_flat.insert(0, 1.0)
+
+        ## debug what is the features_flat?
+        # print("features_flat: ", features_flat)
 
         # pred_vector: [p1_row, p1_col, p2_row, p2_col, a1_success_rate, ..., a6_suceess_rate]
         p1 = pred_vector[:2]
@@ -220,6 +255,7 @@ class SPANetDetector(RetinaNetDetector):
             features_flat = None
 
         return [positions[0]], [angles[0]], [action_names[0]], [best_success_rates[0]], [rotations[0]], features_flat
+        # return position, angle, action_names, best_success_rates, rotations, features_flat
 
     def visualize_spanet(self, image, pred_vector):
         img = draw_image(image, pred_vector)

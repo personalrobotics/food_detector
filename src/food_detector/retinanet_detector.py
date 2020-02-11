@@ -27,6 +27,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             camera_to_table=conf.camera_to_table,
             frame=conf.camera_tf,
             image_topic='/camera/color/image_raw/compressed',
+            # image_topic = '/ReconfigManager/out/spanet',
             image_msg_type='compressed',
             depth_image_topic='/camera/aligned_depth_to_color/image_raw',
             camera_info_topic='/camera/color/camera_info',
@@ -100,6 +101,9 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         """
         Finds ths closest bounding box in the current list and
         updates it with the provided x, y
+
+        one food item might have one bbox at one time, why don't use IoU?
+
         @param x: Center x-position of a bounding box in 2D image
         @param y: Center y-position of a bounding box in 2D image
         @param class_name: Class name of the associated item
@@ -115,10 +119,12 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         if class_name not in self.detected_item_boxes:
             self.detected_item_boxes[class_name] = dict()
 
+        # if self.detected_item_boxes[class_name] was newly created, 
+        # the following for loop won't execute
+
         for bid in self.detected_item_boxes[class_name].keys():
             item = self.detected_item_boxes[class_name][bid]
             bx, by = item[0], item[1]
-
             distance = np.linalg.norm(np.array([x, y]) - np.array([bx, by]))
             largest_id = max(largest_id, bid)
             if distance >= tolerance:
@@ -135,6 +141,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             print("Delete ", ids_to_delete)
             for mid in ids_to_delete:
                 self.detected_item_boxes[class_name].pop(mid)
+            rospy.sleep(3)
 
         if matched_id is not None:
             # Perform EMA
@@ -146,7 +153,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 self.detected_item_boxes[class_name][matched_id] = (newx, newy)
             else:
                 newa = alpha * angle + (1.0 - alpha) * old_data[2]
-                print(old_data, newx, newy, newa, alpha)
+                # print(old_data, newx, newy, newa, alpha)
                 self.detected_item_boxes[class_name][matched_id] = (newx, newy, newa)
             if info is not None:
                 if 'rotation' in info:
@@ -253,6 +260,19 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
         bbox_offset = 5
 
+        ''' Note:
+            Don't quite understand why do we need this following piece of code,
+            check whether exists food item in self.selector_food_names ?
+            why don't write it this way:
+
+            for box_idx in range(len(boxes)):
+                t_class, t_class_name = self.getClassIdAndName()
+                if t_class_name in self.selector_food_names and self.checkValid(boxes[box_idx]):
+                    spBoxIdx = box_idx
+                    self.last_class_name = t_class_name
+                    break
+        '''
+
         found = False
         spBoxIdx = -1
         for _ in range(len(self.selector_food_names)):
@@ -286,7 +306,11 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         chosen_boxes = []
         chosen_labels = []
         chosen_scores = []
-
+        
+        ### ------------------------------- Begin: Annotation Initialization ------------------------------- ##
+        '''
+            shoudn't this only excute once? 
+        '''
         ### Begin Annotation Initialization
         # Label all food items to initialize any annotation algorithm
         boxes_labeled = []
@@ -321,7 +345,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
             boxes_labeled.append(box_labeled)
         self.annotation_initialization(boxes_labeled)
-        ### End Annotation Initialization
+
+        ### ------------------------------- End: Annotation Initialization ------------------------------- ##
 
         for box_idx in range(len(boxes)):
             t_class = labels[box_idx].item()
@@ -335,7 +360,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
           #  if t_class_name != 'strawberry':
           #      continue
-            print(t_class_name)
+            # print(t_class_name)
 
             txmin, tymin, txmax, tymax = boxes[box_idx].numpy() - bbox_offset
             if (txmin < 0 or tymin < 0 or txmax > width or tymax > height):
@@ -349,10 +374,12 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             box_labeled['uv'] = [float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0]
             annotation = self.annotate_box(box_labeled)
             ### End Annotation
+            ## ------------------------------- original ------------------------------- ##
 
+            # print("****** push_str = ", self.push_str)
             skewer_xys, skewer_angles, skewer_infos = self.get_skewering_pose(
                     txmin, txmax, tymin, tymax, width, height,
-                    copied_img_msg, t_class_name, annotation)
+                    copied_img_msg, t_class_name, annotation, self.push_str)
 
             if len(skewer_xys) == 0:
                 self.visualize_detections(img, [], [], [], bbox_offset)
@@ -366,6 +393,9 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 txoff = (txmax - txmin) * skewer_xy[0]
                 tyoff = (tymax - tymin) * skewer_xy[1]
                 pt = [txmin + txoff, tymin + tyoff]
+
+                ## shouldn't all the pt be the same? cuz in this loop, 
+                ## we're just dealing with same food item with different actions
 
                 class_box_id = self.find_closest_box_and_update(
                         pt[0], pt[1],
@@ -390,17 +420,20 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     # pt = [txmin + txoff, tymin + tyoff]
 
                     coff = 60
+                    
+                    ## debug: the shape of this cropped_depth is always (120, 0) ?
+
                     cropped_depth = depth_img[
                         int(pt[1] - coff):int(pt[1] + coff),
-                        int(pt[0] - coff):int(pt[1] + coff)]
+                        int(pt[0] - coff):int(pt[0] + coff)]
                     current_z0 = self.calculate_depth(cropped_depth)
                     if (current_z0 < 0):
                         current_z0 = z0
-                    print("current_z0", current_z0)
+                    # print("current_z0", current_z0)
                     x, y, z, w = quaternion_from_euler(
                         0, 0., np.deg2rad(this_ang))
                     rvec = np.array([x, y, z, w])
-                    print("Retinanet", rvec)
+                    # print("Retinanet", rvec)
 
                     tz = current_z0
                     tx = (tz / cam_fx) * (pt[0] - cam_cx)
@@ -415,6 +448,10 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     chosen_labels.append(
                         "{}_{}".format(t_class_name, class_box_id))
                     chosen_scores.append(scores[box_idx])
+
+            # loop over all bbox, and output detections containing every detected food item with one best action.
+
+            ## ------------------------------- original ------------------------------- ##
 
         self.visualize_detections(
             img, chosen_boxes, chosen_scores, chosen_labels, bbox_offset)

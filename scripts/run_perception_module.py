@@ -21,7 +21,6 @@ if __name__ == '__main__':
         "--demo-type", choices=['spnet', 'spanet', 'retinanet'],
         required=True)
     args = parser.parse_args(rospy.myargv()[1:])
-    rospy.init_node('food_detector')
 
     rospy.init_node('food_detector')
 
@@ -30,7 +29,8 @@ if __name__ == '__main__':
     elif args.demo_type == "spnet":
         pose_estimator = SPNetDetector(use_cuda=conf.use_cuda, node_name=rospy.get_name())
     elif args.demo_type == "spanet":
-        pose_estimator = SPANetDetector(use_cuda=conf.use_cuda)
+        # pose_estimator = SPANetDetector(use_cuda=conf.use_cuda, num_action_per_item=1)
+        pose_estimator = SPANetDetector(use_cuda=conf.use_cuda, num_action_per_item=1, image_topic='/ReconfigManager/out/spanet')
     else:
         raise ValueError("Unknown demo type")
 
@@ -52,4 +52,13 @@ if __name__ == '__main__':
         destination_frame=conf.destination_frame,
         purge_all_markers_per_update=True)
 
-    run_detection(rospy.get_name(), conf.frequency, perception_module)
+    # run_detection(rospy.get_name(), conf.frequency, perception_module)
+    # run_detection('/ReconfigManager/in/spanet', conf.frequency, perception_module)
+    try:
+        perception_module.start()
+        
+        while not rospy.is_shutdown():
+            pass
+
+    except rospy.ROSInterruptException:
+        pass
