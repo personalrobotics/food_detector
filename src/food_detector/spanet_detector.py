@@ -124,7 +124,7 @@ class SPANetDetector(RetinaNetDetector):
         if self.wall_detector is None:
             return None
 
-        wall_type = self.wall_detector.classify(box, self.img_msg, self.depth_img_msg)
+        wall_type = WallClass.kISOLATED #self.wall_detector.classify(box, self.img_msg, self.depth_img_msg)
 
         if wall_type == WallClass.kNEAR_OBJ:
             return dict(tensor=torch.tensor([[0., 1., 0.]]), type=WallClass.kNEAR_OBJ)

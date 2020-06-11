@@ -362,6 +362,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
                 if "action" in skewer_info:
                     t_class_name_current = t_class_name + "+" + skewer_info["action"]
+                else:
+                    t_class_name_current = t_class_name
 
                 txoff = (txmax - txmin) * skewer_xy[0]
                 tyoff = (tymax - tymin) * skewer_xy[1]
