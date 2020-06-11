@@ -96,7 +96,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         return [[0.5, 0.5]], [0.0], [dict()]
 
     def find_closest_box_and_update(self, x, y, class_name,
-        tolerance=70, angle=None, info=None):
+        tolerance=70, angle=0.0, info=None):
         """
         Finds ths closest bounding box in the current list and
         updates it with the provided x, y
@@ -142,21 +142,17 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             old_data = self.detected_item_boxes[class_name][matched_id]
             newx = alpha * x + (1.0 - alpha) * old_data[0]
             newy = alpha * y + (1.0 - alpha) * old_data[1]
-            if angle is None:
-                self.detected_item_boxes[class_name][matched_id] = (newx, newy)
-            else:
-                newa = alpha * angle + (1.0 - alpha) * old_data[2]
-                print(old_data, newx, newy, newa, alpha)
-                self.detected_item_boxes[class_name][matched_id] = (newx, newy, newa)
+
+            newa = alpha * angle + (1.0 - alpha) * old_data[2]
+            print(old_data, newx, newy, newa, alpha)
+            self.detected_item_boxes[class_name][matched_id] = (newx, newy, newa)
+            
             if info is not None:
                 if 'rotation' in info:
                     rotation = alpha * info['rotation'] + (1.0 - alpha) * old_data[3]
                     self.detected_item_boxes[class_name][matched_id] = (newx, newy, newa, rotation)
         else:
-            if angle is None:
-                self.detected_item_boxes[class_name][largest_id + 1] = (x, y)
-            else:
-                self.detected_item_boxes[class_name][largest_id + 1] = (x, y, angle)
+            self.detected_item_boxes[class_name][largest_id + 1] = (x, y, angle)
             if info is not None:
                 if 'rotation' in info:
                     self.detected_item_boxes[class_name][largest_id + 1] = (x, y, angle, info['rotation'])
