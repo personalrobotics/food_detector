@@ -370,7 +370,13 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                         t_class_name_current,
                         angle=skewer_angle,
                         info=skewer_info)
-                pt[0], pt[1], this_ang, skewer_info['rotation'] = self.detected_item_boxes[t_class_name_current][class_box_id]
+                
+                tup = self.detected_item_boxes[t_class_name_current][class_box_id]
+                if len(tup) > 3:
+                    pt[0], pt[1], this_ang, skewer_info['rotation'] = tup
+                else:
+                    pt[0], pt[1], this_ang = tup
+
                 cropped_depth = depth_img[
                     int(max(tymin, 0)):int(min(tymax, height)),
                     int(max(txmin, 0)):int(min(txmax, width))]
