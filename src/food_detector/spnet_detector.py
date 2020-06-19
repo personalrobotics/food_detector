@@ -19,7 +19,7 @@ from PIL import ImageDraw
 import torch
 import torchvision.transforms as transforms
 
-import ada_feeding_demo_config as conf
+import food_detector.ada_feeding_demo_config as conf
 
 rospack = rospkg.RosPack()
 pkg_base = rospack.get_path('food_detector')

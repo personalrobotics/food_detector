@@ -13,7 +13,7 @@ from tf.transformations import quaternion_matrix, quaternion_from_euler
 
 from image_publisher import ImagePublisher
 from util import load_retinanet, load_label_map
-import ada_feeding_demo_config as conf
+import food_detector.ada_feeding_demo_config as conf
 
 
 class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
