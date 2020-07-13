@@ -9,8 +9,9 @@ from pose_estimators.run_perception_module import run_detection
 from pose_estimators.perception_module import PerceptionModule
 from pose_estimators.marker_manager import MarkerManager
 
-from food_detector import SPNetDetector, RetinaNetDetector, SPANetDetector
+from food_detector.spnet_detector import SPNetDetector
 from food_detector.retinanet_detector import RetinaNetDetector
+from food_detector.spanet_detector import SPANetDetector
 
 import food_detector.ada_feeding_demo_config as conf
 

@@ -5,6 +5,7 @@ import os
 import json
 import numpy as np
 import rospy
+import cv2
 from tf import TransformListener
 from sensor_msgs.msg import Image
 import torch
@@ -17,7 +18,7 @@ from PIL import Image as PILImage
 from pose_estimators.pose_estimator import PoseEstimator
 from pose_estimators.detected_item import DetectedItem
 from pose_estimators.utils.ros_utils import get_transform_matrix
-from pose_estimators.utils import CameraSubscriber
+from pose_estimators.utils.camera_subscriber import CameraSubscriber
 
 from bite_selection_package.model.spanet import SPANet
 from bite_selection_package.model.spanet import DenseSPANet
@@ -194,6 +195,13 @@ class SPANetDetector(RetinaNetDetector):
         order = np.argsort(success_rates * -1)
 
         self.visualize_spanet(img, pred_vector)
+
+        # TODO: Formalize This
+        imageFile = rospy.get_param('/acquisitionData/imageFile', "")
+        if len(imageFile) > 0:
+            print("Writing Image: " + imageFile)
+            cv2.imwrite(imageFile, cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))
+            rospy.set_param('/acquisitionData/imageFile', "")
 
         positions = [position] * self.num_action_per_item
         angles = [angle] * self.num_action_per_item

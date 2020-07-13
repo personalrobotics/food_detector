@@ -8,7 +8,7 @@ import torch
 
 from pose_estimators.pose_estimator import PoseEstimator
 from pose_estimators.detected_item import DetectedItem
-from pose_estimators.utils import CameraSubscriber
+from pose_estimators.utils.camera_subscriber import CameraSubscriber
 from tf.transformations import quaternion_matrix, quaternion_from_euler
 
 from image_publisher import ImagePublisher
