@@ -16,11 +16,11 @@ from repub_manager import RepubManager
 
 from enum import Enum
 from copy import deepcopy
-import time 
+import time
 
 class StateMachine(Enum):
     '''
-        Helper Enum 
+        Helper Enum
     '''
     FREE = 0
     ONE = 1
@@ -57,13 +57,13 @@ class ReconfigManager(RepubManager):
         '''
             reset all variables used in reconfig food item.
         '''
-        print("## ----------------------Reset and Start---------------------- ##")        
-        self.state = StateMachine.FREE 
+        print("## ----------------------Reset and Start---------------------- ##")
+        self.state = StateMachine.FREE
         self.lock = True
         ## store 'raw', 'left', 'up', 'right', 'down' image
-        self.img_buffer = {} 
+        self.img_buffer = {}
         ## store 'raw', 'left', 'up', 'right', 'down' marker_array corresponding to img_buffer returned by SPANet
-        self.marker_array_buffer = {} 
+        self.marker_array_buffer = {}
         self.final_marker_array = MarkerArray()
         self.final_score = 0
         self.final_action = None
@@ -74,24 +74,24 @@ class ReconfigManager(RepubManager):
         '''
         if self.state == StateMachine.FREE:
             print('0. get img message from camera')
-            
+
             ## add pushing info into info_map stored in CompressedImage.header.frame_id
             info_map = dict(frame_id=img.header.frame_id, push_direction=None, push_vec=[0,0,0])
             self.img_buffer['raw'] = deepcopy(img)
             self.img_buffer['raw'].header.frame_id = yaml.dump(info_map)
 
-            print('out = ' + str(yaml.load(self.img_buffer['raw'].header.frame_id)['push_direction']))
+            print('out = ' + str(yaml.load(self.img_buffer['raw'].header.frame_id)))
 
             self.spanet_pub.publish(self.img_buffer['raw'])
             self.state = StateMachine.ONE
 
-            # for restart due to time out 
+            # for restart due to time out
             self.last_call_from_spanet = time.time()
-        else: 
+        else:
             time_elapsed_for_spanet = time.time() - self.last_call_from_spanet
             if (time_elapsed_for_spanet > 3):
                 print("time out for one, reset")
-                # os._exit(1) 
+                # os._exit(1)
                 self.reset()
             else:
                 pass
@@ -100,13 +100,13 @@ class ReconfigManager(RepubManager):
     def spanet_callback(self, marker_array):
 
         # print("************************************************************call time count************************************************************")
-        
+
         ## assuming it's all scooping action, no skewering.
         # print('1. {}, get marker_array msg from spanet'.format(self.spanet_callback.__name__))
         ## TODO:
         '''
             add something that can interact with SPANet:
-            when the highest score in marker_array is less than 'threshold', 
+            when the highest score in marker_array is less than 'threshold',
             then call pushedImageGenerator() method that can return
             #num of pushed image and its corresponding pushing vector in image size,
             then refeed it back to SPANet to get another #num of Marker_Array.
@@ -118,7 +118,7 @@ class ReconfigManager(RepubManager):
         self.last_call_from_spanet = time.time()
 
         if self.state == StateMachine.ONE:
-            
+
             print('1. StateMachine.ONE: ')
             self.marker_array_buffer['raw'] = deepcopy(marker_array)
             best_score = 0
@@ -150,10 +150,10 @@ class ReconfigManager(RepubManager):
 
                 self.allow_push_img = False
                 rospy.set_param('/pushingDemo/allow_push_img',  self.allow_push_img)
-                
+
                 self.wait_for_state_change()
 
-            return 
+            return
 
         if self.state == StateMachine.PUSHING and self.lock:
             # print("2. StateMachine.PUSHING:")
@@ -167,7 +167,7 @@ class ReconfigManager(RepubManager):
                 if best_score < yaml_node['score']:
                     best_score = yaml_node['score']
                     best_action = yaml_node['action']
-        
+
             if self.final_score <= best_score:
                 self.final_score = best_score
                 self.final_marker_array = deepcopy(marker_array)
@@ -205,7 +205,7 @@ class ReconfigManager(RepubManager):
         info_map = yaml.load(pushed_img.header.frame_id)
         info_map['push_vec'] = push_vec
         info_map['push_direction'] = push_direction
-        pushed_img.header.frame_id = yaml.dump(info_map) 
+        pushed_img.header.frame_id = yaml.dump(info_map)
         return pushed_img
 
     def wait_for_spanet(self):
@@ -228,7 +228,7 @@ class ReconfigManager(RepubManager):
                     self.lock = True
                     self.spanet_pub.publish(self.img_buffer[key])
                     # rospy.wait_for_message is not suitable here
-                    # rospy.wait_for_message(self.spanet_out_topic, MarkerArray)  
+                    # rospy.wait_for_message(self.spanet_out_topic, MarkerArray)
                     self.wait_for_spanet()
 
                 self.state = StateMachine.READY
@@ -241,8 +241,8 @@ class ReconfigManager(RepubManager):
                     print('5. finish publishing final_marker_array, change to {}'.format('StateMachine.FREE'))
                     self.reset()
                     self.timer.tic_tok()
-                else: 
-                    print("5. self.final_marker_array is None, didn't find a good enough potential action")            
+                else:
+                    print("5. self.final_marker_array is None, didn't find a good enough potential action")
                     self.reset()
 
 if __name__ == "__main__":
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     rospy.init_node(node_name)
     rm = ReconfigManager(node_name=node_name)
 
-    try: 
+    try:
         rm.spin()
 
     except rospy.ROSInterruptException:

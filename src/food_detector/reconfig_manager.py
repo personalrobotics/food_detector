@@ -14,11 +14,11 @@ from repub_manager import RepubManager
 
 from enum import Enum
 from copy import deepcopy
-import time 
+import time
 
 class StateMachine(Enum):
     '''
-        Helper Enum 
+        Helper Enum
     '''
     FREE = 0
     ONE = 1
@@ -48,7 +48,7 @@ class ReconfigManager(RepubManager):
         self.threshold = 0.1
         # self.pushDirections = ['left', 'up', 'right', 'down']
         self.pushVectors = {'left':[1,0,0], 'up':[0,-1,0], 'right':[-1,0,0], 'down':[0,1,0]}
-        # self.state = StateMachine.FREE 
+        # self.state = StateMachine.FREE
         self.reset()
         self.timer = my_timer()
 
@@ -56,12 +56,12 @@ class ReconfigManager(RepubManager):
         '''
             reset all variables used in reconfig food item.
         '''
-        print("## ----------------------Reset and Start---------------------- ##")        
-        self.state = StateMachine.FREE 
+        print("## ----------------------Reset and Start---------------------- ##")
+        self.state = StateMachine.FREE
         ## store 'raw', 'left', 'up', 'right', 'down' image
-        self.img_buffer = {} 
+        self.img_buffer = {}
         ## store 'raw', 'left', 'up', 'right', 'down' marker_array corresponding to img_buffer returned by SPANet
-        self.marker_array_buffer = {} 
+        self.marker_array_buffer = {}
         self.final_marker_array = MarkerArray()
         self.final_score = 0
 
@@ -71,7 +71,7 @@ class ReconfigManager(RepubManager):
         '''
         if self.state == StateMachine.FREE:
             print('0. get img message from camera')
-            
+
             ## add pushing info into info_map stored in CompressedImage.header.frame_id
             info_map = dict(frame_id=img.header.frame_id, push_direction=None, push_vec=[0,0,0])
             self.img_buffer['raw'] = deepcopy(img)
@@ -80,7 +80,7 @@ class ReconfigManager(RepubManager):
             self.spanet_pub.publish(self.img_buffer['raw'])
             self.state = StateMachine.ONE
             print('1. finish publishing raw img to SPANet, change to StateMachine.ONE')
-        else: 
+        else:
             print('0. get img message from camera, but state is not FREE, it\'s {}'.format(str(self.state)))
 
     def spanet_callback(self, marker_array):
@@ -89,7 +89,7 @@ class ReconfigManager(RepubManager):
         ## TODO:
         '''
             add something that can interact with SPANet:
-            when the highest score in marker_array is less than 'threshold', 
+            when the highest score in marker_array is less than 'threshold',
             then call pushedImageGenerator() method that can return
             #num of pushed image and its corresponding pushing vector in image size,
             then refeed it back to SPANet to get another #num of Marker_Array.
@@ -117,7 +117,7 @@ class ReconfigManager(RepubManager):
             self.final_score = best_score
 
             if best_score > self.threshold:
-                print("can do it without reconfig the food item" + 
+                print("can do it without reconfig the food item" +
                       "best action is {}, best score is {}".format(best_action, str(best_score)))
                 self.final_marker_array = deepcopy(marker_array)
                 self.state = StateMachine.READY
@@ -142,7 +142,7 @@ class ReconfigManager(RepubManager):
                     best_score = max(yaml_node['scores'])
                     best_action = yaml_node['actions'][np.argmax(yaml_node['scores'])]
 
-            # print("Reconfig the food item " + 
+            # print("Reconfig the food item " +
             #           "best action is {}, best score is {}".format(best_action, str(best_score)))
 
             if self.final_score < best_score:
@@ -172,7 +172,7 @@ class ReconfigManager(RepubManager):
         info_map = yaml.load(pushed_img.header.frame_id)
         info_map['push_vec'] = push_vec
         info_map['push_direction'] = push_direction
-        pushed_img.header.frame_id = yaml.dump(info_map) 
+        pushed_img.header.frame_id = yaml.dump(info_map)
         # print(pushed_img.header)
         return pushed_img
 
@@ -211,8 +211,8 @@ class ReconfigManager(RepubManager):
                     print('5.finish publishing final_marker_array, change to {}'.format('StateMachine.FREE'))
                     self.reset()
                     self.timer.tic_tok()
-                else: 
-                    print("self.final_marker_array is None, didn't find a good enough potential action")            
+                else:
+                    print("self.final_marker_array is None, didn't find a good enough potential action")
                     self.reset()
 
 if __name__ == "__main__":
@@ -220,7 +220,7 @@ if __name__ == "__main__":
     rospy.init_node(node_name)
     rm = ReconfigManager(node_name=node_name)
 
-    try: 
+    try:
         rm.spin()
 
     except rospy.ROSInterruptException:

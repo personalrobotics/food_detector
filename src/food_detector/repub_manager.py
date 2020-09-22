@@ -29,7 +29,8 @@ class RepubManager(object):
         self.marker_array_cnt = 0
 
         self.topic_init()
-
+        print("finish super init")
+        
     def topic_init(self):
         self.img_sub = rospy.Subscriber(self.image_topic, CompressedImage,
                                                self.camera_callback, queue_size=1)

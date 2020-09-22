@@ -24,7 +24,8 @@ camera_tilt = 1e-8
 num_classes = 15  # should match the trained model
 checkpoint = os.path.join(
     pr_path,
-    'checkpoint/food_ckpt.pth')#retinanet_spanet_all_ckpt.pth')
+    'checkpoint/potato_ckpt.pth')#retinanet_spanet_all_ckpt.pth')
+    # 'checkpoint/food_ckpt.pth')#retinanet_spanet_all_ckpt.pth')
 label_map = os.path.join(
     bsp_path,
     'data/food_label_map.pbtxt')

@@ -119,7 +119,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         if class_name not in self.detected_item_boxes:
             self.detected_item_boxes[class_name] = dict()
 
-        # if self.detected_item_boxes[class_name] was newly created, 
+        # if self.detected_item_boxes[class_name] was newly created,
         # the following for loop won't execute
 
         for bid in self.detected_item_boxes[class_name].keys():
@@ -306,10 +306,10 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         chosen_boxes = []
         chosen_labels = []
         chosen_scores = []
-        
+
         ### ------------------------------- Begin: Annotation Initialization ------------------------------- ##
         '''
-            shoudn't this only excute once? 
+            shoudn't this only excute once?
         '''
         ### Begin Annotation Initialization
         # Label all food items to initialize any annotation algorithm
@@ -394,7 +394,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 tyoff = (tymax - tymin) * skewer_xy[1]
                 pt = [txmin + txoff, tymin + tyoff]
 
-                ## shouldn't all the pt be the same? cuz in this loop, 
+                ## shouldn't all the pt be the same? cuz in this loop,
                 ## we're just dealing with same food item with different actions
 
                 class_box_id = self.find_closest_box_and_update(
@@ -420,7 +420,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     # pt = [txmin + txoff, tymin + tyoff]
 
                     coff = 60
-                    
+
                     ## debug: the shape of this cropped_depth is always (120, 0) ?
 
                     cropped_depth = depth_img[
