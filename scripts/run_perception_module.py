@@ -9,10 +9,10 @@ from pose_estimators.run_perception_module import run_detection
 from pose_estimators.perception_module import PerceptionModule
 from pose_estimators.marker_manager import MarkerManager
 
-from food_detector import SPNetDetector, RetinaNetDetector, SPANetDetector
-from food_detector.retinanet_detector import RetinaNetDetector
+from food_detector_base import SPNetDetector, RetinaNetDetector, SPANetDetector
+from food_detector_base.retinanet_detector import RetinaNetDetector
 
-import food_detector.ada_feeding_demo_config as conf
+import food_detector_base.ada_feeding_demo_config as conf
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

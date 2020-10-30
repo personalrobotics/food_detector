@@ -4,7 +4,7 @@
 from pose_estimators.perception_module import PerceptionModule
 from pose_estimators.marker_manager import MarkerManager
 from pose_estimators.run_perception_module import run_detection
-from food_detector.sim_food_detector import SimFoodDetector
+from food_detector_base.sim_food_detector import SimFoodDetector
 import rospy
 
 

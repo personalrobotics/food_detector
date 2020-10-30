@@ -32,12 +32,12 @@ class SimFoodDetector(PoseEstimator):
                           [0, 0, 0, 1]])
         self.item0 = DetectedItem(
             frame_id=frame_id,
-            marker_namespace="carrot",
+            marker_namespace="onebite_mpotato",
             marker_id=0,
             db_key="food_item",
             pose=pose0,
             detected_time=rospy.Time.now(),
-            info_map=dict(action="vertical", rotation=0.0, score=1.0, annotation='tv', push_direction="left", pushing_vec=[0, 0, 1]))
+            info_map=dict(action="vertical", rotation=0.0, score=1.0, annotation='tv', push_direction="left_push", pushing_vec=[0, 0, 1]))
 
         # 1th quadrant
 
@@ -47,26 +47,26 @@ class SimFoodDetector(PoseEstimator):
                           [0, 0, 0, 1]])
         self.item1 = DetectedItem(
             frame_id=frame_id,
-            marker_namespace="carrot",
+            marker_namespace="onebite_mpotato",
             marker_id=1,
             db_key="food_item",
             pose=pose1,
             detected_time=rospy.Time.now(),
-            info_map=dict(action="vertical", rotation=0.0, score=1.0, annotation='tv', push_direction="down", pushing_vec=[0, 0, 1]))
+            info_map=dict(action="vertical", rotation=0.0, score=1.0, annotation='tv', push_direction="left_push", pushing_vec=[0, 0, 1]))
 
         # 4th quadrant
-        pose4 = np.array([[1, 0, 0, 0.33],
-                          [0, 1, 0, -0.29],
+        pose4 = np.array([[1, 0, 0, 0.32],
+                          [0, 1, 0, -0.32],
                           [0, 0, 1, 0.25],
                           [0, 0, 0, 1]])
         self.item4 = DetectedItem(
             frame_id=frame_id,
-            marker_namespace="carrot",
+            marker_namespace="onebite_mpotato",
             marker_id=4,
             db_key="food_item",
             pose=pose4,
             detected_time=rospy.Time.now(),
-            info_map=dict(action="vertical", rotation=0.0, score=1.0, annotation='tv', push_direction="hi", pushing_vec=[0, 0, 1]))
+            info_map=dict(action="vertical", rotation=0.0, score=1.0, annotation='tv', push_direction="left_push", pushing_vec=[0, 0, 1]))
 
     def detect_objects(self):
         self.item0.detected_time = rospy.Time.now()

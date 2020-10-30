@@ -20,15 +20,23 @@ class SimFoodPublisher(object):
         self.depth_img_pub = rospy.Publisher(self.depth_image_topic, Image, queue_size=1)
         self.info_pub = rospy.Publisher(self.camera_info_topic, CameraInfo, queue_size=1)
 
+        print("Publish to ", self.image_topic)
+        print("Publish to ", self.depth_image_topic)
+        print("Publish to ", self.camera_info_topic)
+
     def start(self):
+        # NOTE this script need to be run in the current path, since the image paths are relative path
+        img_name="0061_5_finish.png"
+        depth_name="0061_5_finish_depth.png"
+        # self.load_img(img_name, depth_name)
         self.load_img()
         self.pub_img()
 
-    def load_img(self):
-        cv_image = cv2.imread('0060_1_start.png')
+    def load_img(self, img_name='0060_1_start.png', depth_name='0060_1_start_depth.png'):
+        cv_image = cv2.imread(img_name)
         self.compressed_img_msg = br.cv2_to_compressed_imgmsg(cv_image)
-        depth_img = cv2.imread('0060_1_start_depth.png', flags=cv2.CV_16UC1)
-        self.depth_img_msg = br.cv2_to_imgmsg(depth_img)
+        depth_img = cv2.imread(depth_name, flags=cv2.CV_16UC1)
+        self.depth_img = br.cv2_to_imgmsg(depth_img)
 
         self.camInfo = CameraInfo(
             header=Header(
@@ -58,14 +66,18 @@ class SimFoodPublisher(object):
         r = rospy.Rate(10)
         while not rospy.is_shutdown():
             self.img_pub.publish(self.compressed_img_msg)
-            self.depth_img_pub.publish(self.depth_img_msg)
+            self.depth_img_pub.publish(self.depth_img)
             self.info_pub.publish(self.camInfo)
             r.sleep()
 
 if __name__ == '__main__':
     rospy.init_node('image_publisher')
     image_topic = '/camera/color/image_raw/compressed'
-    depth_image_topic = '/camera/aligned_depth_to_color/image_raw'
+    depth_image_topic = '/camera/aligned_depth_to_color/image_raw'    
+
+    # image_topic = '/sim_camera/color/image_raw/compressed'
+    # depth_image_topic = '/sim_camera/aligned_depth_to_color/image_raw'
+    
     camera_info_topic = '/camera/color/camera_info'
 
     simFoodPub = SimFoodPublisher(image_topic, depth_image_topic, camera_info_topic)

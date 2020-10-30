@@ -30,8 +30,10 @@ from retinanet_detector import RetinaNetDetector
 from image_publisher import ImagePublisher
 import spa_demo_config as conf
 from wall_detector import WallDetector, WallClass
+
 N_FEATURES = 2048 if spanet_config.n_features==None else spanet_config.n_features
-ACTIONS = ['vertical', 'tilted-vertical', 'tilted-angled']
+# ACTIONS = ['vertical', 'tilted-vertical', 'tilted-angled']
+ACTIONS = ['vertical', 'tilted-vertical', 'tilted-angled', 'side-scoop']
 
 class SPANetDetector(RetinaNetDetector):
     """
@@ -39,17 +41,20 @@ class SPANetDetector(RetinaNetDetector):
     """
 
     def __init__(self, use_cuda=True, use_walldetector=True,
-        num_action_per_item=1, image_topic='/camera/color/image_raw/compressed'):
+        num_action_per_item=1, 
+        image_topic='/camera/color/image_raw/compressed',
+        depth_image_topic='/camera/aligned_depth_to_color/image_raw'):
         RetinaNetDetector.__init__(
             self,
             retinanet_checkpoint=conf.checkpoint,
             use_cuda=use_cuda,
             label_map_file=conf.label_map,
-            node_name=conf.node_name,
+            node_name=rospy.get_name(),
             camera_to_table=conf.camera_to_table,
             camera_tilt=1e-5,
             frame=conf.camera_tf,
-            image_topic=image_topic)
+            image_topic=image_topic,
+            depth_image_topic=depth_image_topic)
 
         self.listener = TransformListener()
         self.detection_frame = conf.camera_tf
@@ -124,12 +129,12 @@ class SPANetDetector(RetinaNetDetector):
 
 
     # Entry point to annotate individual boxes with arbitrary data
-    def annotate_box(self, box):
+    def annotate_box(self, box=None):
         if self.wall_detector is None:
             return None
 
         wall_type = WallClass.kISOLATED
-        # wall_type = self.wall_detector.classify(box, self.img_msg, self.depth_img_msg)
+        # wall_type = self.wall_detector.classify(box, self.img_msg, self.depth_img)
 
         if wall_type == WallClass.kNEAR_OBJ:
             return dict(tensor=torch.tensor([[0., 1., 0.]]), type=WallClass.kNEAR_OBJ)
@@ -140,7 +145,7 @@ class SPANetDetector(RetinaNetDetector):
 
     def get_skewering_pose(
             self, txmin, txmax, tymin, tymax, width,
-            height, img_msg, t_class_name, annotation, push_str):
+            height, img_msg, t_class_name, annotation):
         """
         @return list of skewering position, angle,
         and other information for each detected item in the image.
@@ -153,11 +158,7 @@ class SPANetDetector(RetinaNetDetector):
         positions, angles, actions, scores, rotations, features = self.publish_spanet(
             cropped_img, t_class_name, True, annotation['tensor'])
 
-        push_info = yaml.load(push_str)
-
         info_maps = [dict(
-            push_direction=push_info['push_direction'],
-            push_vec=push_info['push_vec'],
             features=features,
             action=action,
             uv=[float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0],
@@ -166,30 +167,8 @@ class SPANetDetector(RetinaNetDetector):
             rotation=float(rotation)) for rotation, angle, action, score in zip(
                 rotations, angles, actions, scores)]
 
-        # ## ------------------------------- new ------------------------------- ##
-        # position, angle, actions, scores, rotations, features = self.publish_spanet(
-        #     cropped_img, t_class_name, True, annotation['tensor'])
-
-        # info_map = dict(
-        #     features=features,
-        #     actions=actions,
-        #     uv=[float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0],
-        #     scores=[round(float(score),2) for score in scores],
-        #     annotation=str(annotation['type']), ## it's about wall?
-        #     ## this will fail "find_closest_box_and_update" methon in retinanet_detector.py 
-        #     rotations=[float(rotation) for rotation in rotations],
-        #     push=None)   ## or a vector that tell the robot which direction to push)   
-
-        #     ## in ReconfigurationManager, 
-        #     ## if the fooditem is continuous food like mash potato/potato salad, 
-        #     ## only consider scooping actions and ignore skewering actions
-        #     ## basically only threshold on scores of scooping actions then decide whether consider push or not.
-
-        #     ## SPANet will eventually tell that 
-        # ## ------------------------------- new ------------------------------- ##
-
-        # return position, angle, info_map
-        return positions, angles, info_maps
+        # return positions, angles, info_maps
+        return positions[0], angles[0], info_maps[0]
 
     def publish_spanet(self, sliced_img, identity, actuallyPublish=False, loc_type=None):
         img_org = PILImage.fromarray(sliced_img.copy())
@@ -205,24 +184,16 @@ class SPANetDetector(RetinaNetDetector):
             torch.stack([transform(img).cuda()]), None, loc_type.cuda())
 
         pred_vector = pred_vector.cpu().detach().numpy().flatten()
+        # print("pred_vector = ", pred_vector)
         features_flat = features.cpu().detach().numpy().flatten().tolist()
         # Add Bias
         features_flat.insert(0, 1.0)
-
-        ## debug what is the features_flat?
-        # print("features_flat: ", features_flat)
 
         # pred_vector: [p1_row, p1_col, p2_row, p2_col, a1_success_rate, ..., a6_suceess_rate]
         p1 = pred_vector[:2]
         p2 = pred_vector[2:4]
 
         position = np.divide(p1 + p2, 2.0)
-
-        # Offset if necessary
-        # fudge_offset = np.array([[-0.2, 0.8]]).reshape(position.shape)
-        # position = position + fudge_offset
-        # print("Position After: ", position)
-
         angle = np.degrees(np.arctan2(p2[1] - p1[1], p2[0] - p1[0]))
 
         success_rates = pred_vector[4:]
@@ -244,6 +215,9 @@ class SPANetDetector(RetinaNetDetector):
                 rotation = 0
             else:
                 rotation = 90.0
+
+            if (action_idx == 6):
+                rotation = 0
 
             action_names += [ACTIONS[action_idx // 2]]
             best_success_rates += [success_rate]

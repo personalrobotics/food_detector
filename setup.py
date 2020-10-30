@@ -1,4 +1,3 @@
-# #!/usr/bin/env python
 try:
     from setuptools import setup
 except ImportError:
@@ -7,7 +6,7 @@ from catkin_pkg.python_setup import generate_distutils_setup
 
 d = generate_distutils_setup(
     packages=[
-        'food_detector'
+        'food_detector_base'
     ],
     package_dir={'': 'src'},
     install_requires=[
@@ -15,7 +14,6 @@ d = generate_distutils_setup(
         'pose_estimators',
         'pytorch_retinanet',
         'bite_selection_package',
-        'conban_spanet'
     ]
 )
 setup(**d)
