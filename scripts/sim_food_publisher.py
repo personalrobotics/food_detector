@@ -28,9 +28,15 @@ class SimFoodPublisher(object):
         # NOTE this script need to be run in the current path, since the image paths are relative path
         img_name="0061_5_finish.png"
         depth_name="0061_5_finish_depth.png"
-        # self.load_img(img_name, depth_name)
-        self.load_img()
-        self.pub_img()
+        r = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            finished = input("which pic to pub, 0 for raw, 1 for pushed")
+            if finished == 0: self.load_img()
+            if finished == 1: self.load_img(img_name, depth_name)
+            self.img_pub.publish(self.compressed_img_msg)
+            self.depth_img_pub.publish(self.depth_img)
+            self.info_pub.publish(self.camInfo)
+            r.sleep()
 
     def load_img(self, img_name='0060_1_start.png', depth_name='0060_1_start_depth.png'):
         cv_image = cv2.imread(img_name)
@@ -61,14 +67,6 @@ class SimFoodPublisher(object):
                 do_rectify=False
             )
         )
-
-    def pub_img(self):
-        r = rospy.Rate(10)
-        while not rospy.is_shutdown():
-            self.img_pub.publish(self.compressed_img_msg)
-            self.depth_img_pub.publish(self.depth_img)
-            self.info_pub.publish(self.camInfo)
-            r.sleep()
 
 if __name__ == '__main__':
     rospy.init_node('image_publisher')

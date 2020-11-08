@@ -5,7 +5,7 @@ from cv_bridge import CvBridge
 
 from sensor_msgs.msg import Image
 from visualization_msgs.msg import Marker, MarkerArray
-from food_msg.srv import SPANetTrigger, SPANetTriggerResponse
+from food_msg.srv import SPANetTrigger, SPANetTriggerResponse, SPANet, SPANetResponse
 # from std_srvs.srv import Trigger, TriggerResponse
 
 from retinanet_detector import RetinaNetDetector
@@ -18,10 +18,10 @@ import ada_feeding_demo_config as conf
 
 br = CvBridge()
 class SPANetService(object):
-        
+
     def __init__(self, detector_type="RetinaNet"):
 
-        self.service = rospy.Service('/SPANet', SPANetTrigger, self.handle_rqt)
+        self.service = rospy.Service('/SPANet', SPANet, self.handle_rqt)
         self.publisher = rospy.Publisher('/food_detector/marker_array', MarkerArray, queue_size=1)
         self.perception_init(detector_type)
         self.img_pub = rospy.Publisher('/food_detector/bbox_img', Image, queue_size=1)
@@ -37,7 +37,7 @@ class SPANetService(object):
         if detector_type == "SPANet":
             pose_estimator = SPANetDetector(use_cuda=True, num_action_per_item=1, image_topic=image_topic, depth_image_topic=depth_image_topic)
 
-        marker_manager = MarkerManager(s
+        marker_manager = MarkerManager(
             marker_type=Marker.CUBE,
             scale=[0.05, 0.01, 0.01],
             color=[0.5, 1.0, 0.5, 0.1],
@@ -51,10 +51,16 @@ class SPANetService(object):
             destination_frame=conf.destination_frame,
             purge_all_markers_per_update=True)
 
+    def convert(self, raw_img_msg):
+        raw_img = br.imgmsg_to_cv2(raw_img_msg)
+        print("get detect rqt from RM/pix2food")
+        return raw_img
+
     def handle_rqt(self, rqt):
-        detection_markers, bbox_img_msg = self.perception_module.get_detected_objects_as_markers()
+        raw_img = self.convert(rqt.raw_img_msg)
+        detection_markers, bbox_img_msg = self.perception_module.get_detected_objects_as_markers(raw_img)
         print("finish one detection")
-        return SPANetTriggerResponse(
+        return SPANetResponse(
             markers=detection_markers,
             bbox_img_msg=bbox_img_msg 
         )

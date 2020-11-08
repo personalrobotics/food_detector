@@ -13,7 +13,7 @@ from food_detector_base import SPANetService
 
 
 if __name__ == "__main__":
-
+    # TODO: Change the way SPANet and pushing demo work !
     rospy.init_node('food_detector_server')
     print("hello")
     spanetService = SPANetService("SPANet")

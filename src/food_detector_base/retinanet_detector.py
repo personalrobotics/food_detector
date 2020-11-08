@@ -6,6 +6,7 @@ from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
 import torch
 import yaml 
+import cv2
 
 from pose_estimators.pose_estimator import PoseEstimator
 from pose_estimators.detected_item import DetectedItem
@@ -116,14 +117,22 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
     def annotate_box(self, box=None):
         return None
 
-    def detect_objects(self):
-        if self.img is None:
-            return list()
+    def detect_objects(self, raw_img):
+        print("called")
+        if self.img is None and raw_img is None:
+            #TODO return [], and a blank img; for simulatiton, it might happen if you do not keep pub img to camera topic
+            return list(), self.img
 
         if self.depth_img is None:
             self.depth_img = np.ones(self.img.shape[:2])
 
         copied_img = self.img.copy()
+        if raw_img is not None:
+            # cv2.imshow("raw_img", raw_img)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
+            print("use img from rqt")
+            copied_img = raw_img.copy()
         img = PILImage.fromarray(copied_img.copy())
         depth_img = self.depth_img.copy()
 
@@ -144,8 +153,9 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
         if boxes is None or len(boxes) == 0:
             msg_img = self.bridge.cv2_to_imgmsg(np.array(img), "rgb8")
-            self.pub_img.publish(msg_img)
-            return list()
+            # self.pub_img.publish(msg_img)
+            #TODO deal with food detected case
+            return [], msg_img
         
         name_labels = []
         for label in labels:
@@ -169,7 +179,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         cam_cx = camera_matrix[0, 2]
         cam_cy = camera_matrix[1, 2]
 
-        detections = list()
+        detections = []
 
         bbox_offset = 5
         for box_idx in range(len(boxes)):
@@ -216,7 +226,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             rvec = np.array([x, y, z, w])
 
             detections.append(self.create_detected_item(rvec, tvec, t_class_name_current, box_idx, info_map=skewer_info))
-
+        print(len(detections), bbox_img.size)
         return detections, bbox_img_msg
 
     def visualize_detections(self, img, boxes, scores, labels, bbox_offset=5, push_type="no_push"):

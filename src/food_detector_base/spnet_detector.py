@@ -19,7 +19,14 @@ from PIL import ImageDraw
 import torch
 import torchvision.transforms as transforms
 
-import ada_feeding_demo_config as conf
+
+if sys.version_info[0] == 2:
+    import ada_feeding_demo_config as conf
+    from retinanet_detector import RetinaNetDetector
+if sys.version_info[0] == 3:
+    from . import ada_feeding_demo_config as conf
+    from .retinanet_detector import RetinaNetDetector
+
 
 rospack = rospkg.RosPack()
 pkg_base = rospack.get_path('food_detector')
@@ -29,8 +36,6 @@ sys.path.append(external_path)
 
 from bite_selection_package.model.spnet import SPNet, DenseSPNet
 from bite_selection_package.config import spnet_config
-
-from retinanet_detector import RetinaNetDetector
 
 
 # A pose estimator for detecting object and skewering pose
