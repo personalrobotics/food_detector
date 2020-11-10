@@ -30,7 +30,8 @@ class SimFoodPublisher(object):
         depth_name="0061_5_finish_depth.png"
         r = rospy.Rate(10)
         while not rospy.is_shutdown():
-            finished = input("which pic to pub, 0 for raw, 1 for pushed")
+            # finished = input("which pic to pub, 0 for raw, 1 for pushed")
+            finished = 1
             if finished == 0: self.load_img()
             if finished == 1: self.load_img(img_name, depth_name)
             self.img_pub.publish(self.compressed_img_msg)

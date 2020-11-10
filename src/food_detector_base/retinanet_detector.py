@@ -63,7 +63,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
 
         self.z = None
 
-    def create_detected_item(self, rvec, tvec, t_class_name, box_id,
+    def create_detected_item(self, rvec, tvec, t_class_name, box_id, bbox,
                              db_key='food_item', info_map=dict()):
         pose = quaternion_matrix(rvec)
         pose[:3, 3] = tvec
@@ -75,6 +75,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             db_key=db_key,
             pose=pose,
             detected_time=rospy.Time.now(),
+            bbox=bbox,
             info_map=info_map)
 
     # Inherited classes change this
@@ -117,8 +118,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
     def annotate_box(self, box=None):
         return None
 
-    def detect_objects(self, raw_img):
-        print("called")
+    def detect_objects(self, raw_img=None):
+        # print("called")
         if self.img is None and raw_img is None:
             #TODO return [], and a blank img; for simulatiton, it might happen if you do not keep pub img to camera topic
             return list(), self.img
@@ -131,7 +132,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             # cv2.imshow("raw_img", raw_img)
             # cv2.waitKey(0)
             # cv2.destroyAllWindows()
-            print("use img from rqt")
+            # print("use img from rqt")
             copied_img = raw_img.copy()
         img = PILImage.fromarray(copied_img.copy())
         depth_img = self.depth_img.copy()
@@ -225,8 +226,9 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             x, y, z, w = quaternion_from_euler(0., 0., 90. + skewer_angle)
             rvec = np.array([x, y, z, w])
 
-            detections.append(self.create_detected_item(rvec, tvec, t_class_name_current, box_idx, info_map=skewer_info))
-        print(len(detections), bbox_img.size)
+            detections.append(self.create_detected_item(rvec, tvec, t_class_name_current, box_idx, 
+                                bbox=boxes[box_idx].numpy().astype(np.int), info_map=skewer_info))
+        # print(len(detections), bbox_img.size)
         return detections, bbox_img_msg
 
     def visualize_detections(self, img, boxes, scores, labels, bbox_offset=5, push_type="no_push"):
