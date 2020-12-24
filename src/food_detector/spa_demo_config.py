@@ -30,10 +30,10 @@ label_map = os.path.join(
     'data/food_label_map.pbtxt')
 spanet_checkpoint = os.path.join(
     bsp_path,
-    'checkpoint/spanet_ckpt.pth')#food_spanet_all_rgb_wall_wo_celery_carrot_bell_pepper_ckpt_best.pth')
+    'checkpoint/food_spanet_all_rgb_wall_wo_celery_carrot_kale_lettuce_bell_pepper_apple_cantaloupe_lettuce_dr_ckpt_best.pth')#food_spanet_all_rgb_wall_wo_celery_carrot_bell_pepper_ckpt_best.pth')
 spanet_wall_checkpoint = os.path.join(
     bsp_path,
-    'checkpoint/food_spanet_all_rgb_wall_dr_ckpt_best.pth')#'checkpoint/spanet_with_wall_ckpt.pth')  # DEBUG: XM 
+    'checkpoint/food_spanet_all_rgb_wall_wo_celery_carrot_kale_lettuce_bell_pepper_apple_cantaloupe_lettuce_dr_ckpt_best.pth')#'checkpoint/spanet_with_wall_ckpt.pth')  # DEBUG: XM 
 
 pred_position = [0.5, 0.5]
 

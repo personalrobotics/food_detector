@@ -176,7 +176,7 @@ class SPANetDetector(RetinaNetDetector):
         pred_vector = pred_vector.cpu().detach().numpy().flatten()
         features_flat = features.cpu().detach().numpy().flatten().tolist()
         # Add Bias
-        features_flat.insert(0, 1.0)
+        features_flat.append(1.0)
 
         # pred_vector: [p1_row, p1_col, p2_row, p2_col, a1_success_rate, ..., a6_suceess_rate]
         p1 = pred_vector[:2]
@@ -201,7 +201,10 @@ class SPANetDetector(RetinaNetDetector):
         if len(imageFile) > 0:
             print("Writing Image: " + imageFile)
             cv2.imwrite(imageFile, cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))
+            print("Writing Features...")
+            rospy.set_param('/acquisitionData/features', features_flat)
             rospy.set_param('/acquisitionData/imageFile', "")
+
 
         positions = [position] * self.num_action_per_item
         angles = [angle] * self.num_action_per_item
