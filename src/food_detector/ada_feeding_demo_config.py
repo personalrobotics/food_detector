@@ -5,8 +5,13 @@ import rospkg
 import torch
 
 rospack = rospkg.RosPack()
-retinanet_base = rospack.get_path('pytorch_retinanet')
-biteselection_base = rospack.get_path('bite_selection_package')
+try:
+	retinanet_base = rospack.get_path('pytorch_retinanet')
+	biteselection_base = rospack.get_path('bite_selection_package')
+except:
+	print("WARNING: pytorch_retinanet and bite_selection_package not found")
+	retinanet_base = ''
+	biteselection_base = ''
 
 gpus = '0'
 use_cuda = torch.cuda.is_available()
