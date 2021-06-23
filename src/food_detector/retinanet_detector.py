@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 
 import numpy as np
 import rospy
@@ -11,9 +12,9 @@ from pose_estimators.detected_item import DetectedItem
 from pose_estimators.utils import CameraSubscriber
 from tf.transformations import quaternion_matrix, quaternion_from_euler
 
-from image_publisher import ImagePublisher
-from util import load_retinanet, load_label_map
-import ada_feeding_demo_config as conf
+from .image_publisher import ImagePublisher
+from .util import load_retinanet, load_label_map
+from . import ada_feeding_demo_config as conf
 
 
 class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
@@ -267,7 +268,15 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     t_class_name = force_food_name
                     t_class = self.get_index_of_class_name(t_class_name)
 
-                if (t_class_name == self.selector_food_names[self.selector_index]):
+                #Overrides
+                #if t_class_name == "grape":
+                #    t_class_name = "strawberry"
+                #if t_class_name == "cherry_tomato":
+                #    t_class_name = "strawberry"
+                if t_class_name == "honeydew":
+                    t_class_name = "cantaloupe"
+
+                if (t_class_name == list(self.selector_food_names)[self.selector_index]):
                     txmin, tymin, txmax, tymax = \
                         boxes[box_idx].numpy() - bbox_offset
                     if (txmin < 0 or tymin < 0 or
@@ -310,8 +319,13 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             if force_food:
                 t_class_name = force_food_name
 
-#            if t_class_name != 'strawberry':
-#                continue
+            #Overrides
+            #if t_class_name == "grape":
+            #    t_class_name = "strawberry"
+            #if t_class_name == "cherry_tomato":
+            #    t_class_name = "strawberry"
+            if t_class_name == "honeydew":
+                t_class_name = "cantaloupe"
 
             class_box_id = self.find_closest_box_and_update(
                         (txmin + txmax) / 2.0, (tymin + tymax) / 2.0,
@@ -332,6 +346,14 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             if force_food:
                 t_class_name = force_food_name
                 t_class = self.get_index_of_class_name(t_class_name)
+
+            #Overrides
+            #if t_class_name == "grape":
+            #    t_class_name = "strawberry"
+            #if t_class_name == "cherry_tomato":
+            #    t_class_name = "strawberry"
+            if t_class_name == "honeydew":
+                t_class_name = "cantaloupe"
 
           #  if t_class_name != 'strawberry':
           #      continue

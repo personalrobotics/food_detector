@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import division, print_function
+from __future__ import division, print_function, absolute_import
 
 import os
 import json
@@ -24,10 +24,10 @@ from bite_selection_package.model.spanet import DenseSPANet
 from bite_selection_package.config import spanet_config
 from bite_selection_package.utils.visualize_spanet import draw_image
 
-from retinanet_detector import RetinaNetDetector
-from image_publisher import ImagePublisher
-import spa_demo_config as conf
-from wall_detector import WallDetector, WallClass
+from .retinanet_detector import RetinaNetDetector
+from .image_publisher import ImagePublisher
+from . import spa_demo_config as conf
+from .wall_detector import WallDetector, WallClass
 N_FEATURES = 2048 if spanet_config.n_features==None else spanet_config.n_features
 ACTIONS = ['vertical', 'tilted-vertical', 'tilted-angled']
 
@@ -124,7 +124,8 @@ class SPANetDetector(RetinaNetDetector):
         if self.wall_detector is None:
             return None
 
-        wall_type = self.wall_detector.classify(box, self.img_msg, self.depth_img_msg)
+        wall_type = WallClass.kISOLATED
+        #self.wall_detector.classify(box, self.img_msg, self.depth_img_msg)
 
         if wall_type == WallClass.kNEAR_OBJ:
             return dict(tensor=torch.tensor([[0., 1., 0.]]), type=WallClass.kNEAR_OBJ)

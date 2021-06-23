@@ -3,6 +3,7 @@
 from __future__ import print_function
 from __future__ import division
 from __future__ import with_statement
+from __future__ import absolute_import
 
 import numpy as np
 import os
@@ -19,7 +20,7 @@ from PIL import ImageDraw
 import torch
 import torchvision.transforms as transforms
 
-import ada_feeding_demo_config as conf
+from . import ada_feeding_demo_config as conf
 
 rospack = rospkg.RosPack()
 pkg_base = rospack.get_path('food_detector')
@@ -30,7 +31,7 @@ sys.path.append(external_path)
 from bite_selection_package.model.spnet import SPNet, DenseSPNet
 from bite_selection_package.config import spnet_config
 
-from retinanet_detector import RetinaNetDetector
+from .retinanet_detector import RetinaNetDetector
 
 
 # A pose estimator for detecting object and skewering pose
