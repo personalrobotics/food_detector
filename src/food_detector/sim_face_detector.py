@@ -20,7 +20,8 @@ class SimFaceDetector(PoseEstimator):
             marker_id=1,
             db_key="mouth",
             pose=personPose,
-            detected_time=rospy.Time.now())
+            detected_time=rospy.Time.now(),
+            info_map=dict(**{"mouth-status": "open"}))
 
     def detect_objects(self):
         self.item.detected_time = rospy.Time.now()

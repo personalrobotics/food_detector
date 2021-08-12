@@ -2,13 +2,19 @@
 
 import os
 import rospkg
+import torch
 
 rospack = rospkg.RosPack()
-retinanet_base = rospack.get_path('pytorch_retinanet')
-biteselection_base = rospack.get_path('bite_selection_package')
+try:
+	retinanet_base = rospack.get_path('pytorch_retinanet')
+	biteselection_base = rospack.get_path('bite_selection_package')
+except:
+	print("WARNING: pytorch_retinanet and bite_selection_package not found")
+	retinanet_base = ''
+	biteselection_base = ''
 
 gpus = '0'
-use_cuda = True
+use_cuda = torch.cuda.is_available()
 
 image_topic = '/camera/color/image_raw/compressed'
 msg_type = 'compressed'
@@ -30,3 +36,6 @@ pred_position = [0.5, 0.5]
 
 marker_ns = 'food_item'
 frequency = 20
+
+# Used for wall detector
+destination_frame = 'j2n6s200_link_base'

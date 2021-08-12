@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 
 import numpy as np
 import rospy
@@ -8,12 +9,12 @@ import torch
 
 from pose_estimators.pose_estimator import PoseEstimator
 from pose_estimators.detected_item import DetectedItem
-from pose_estimators.utils import CameraSubscriber
+from pose_estimators.utils.camera_subscriber import CameraSubscriber
 from tf.transformations import quaternion_matrix, quaternion_from_euler
 
-from image_publisher import ImagePublisher
-from util import load_retinanet, load_label_map
-import ada_feeding_demo_config as conf
+from .image_publisher import ImagePublisher
+from .util import load_retinanet, load_label_map
+from . import ada_feeding_demo_config as conf
 
 
 class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
@@ -31,7 +32,8 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             depth_image_topic='/camera/aligned_depth_to_color/image_raw',
             camera_info_topic='/camera/color/camera_info',
             detection_frame='camera_color_optical_frame',
-            timeout=1.0):
+            timeout=1.0,
+            ema_alpha=1.0):
 
         PoseEstimator.__init__(self)
         CameraSubscriber.__init__(
@@ -43,6 +45,7 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             camera_info_topic=camera_info_topic)
         ImagePublisher.__init__(self, node_name)
 
+        print(retinanet_checkpoint)
         self.retinanet, self.retinanet_transform, self.encoder = \
             load_retinanet(use_cuda, retinanet_checkpoint)
         self.label_map = load_label_map(label_map_file)
@@ -57,17 +60,21 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         self.camera_tilt = camera_tilt
         self.camera_to_table = camera_to_table
         self.frame = frame
+        self.ema_alpha = ema_alpha
 
         # Keeps track of previously detected items'
         # center of bounding boxes, class names and associate each
         # box x class with a unique id
         # Used fortracking (temporarily)
         self.detected_item_boxes = dict()
-        for food in self.selector_food_names:
-            self.detected_item_boxes[food] = dict()
+        # for food in self.selector_food_names:
+            # self.detected_item_boxes[food] = dict()
+
+        # This affects all items
+        self.z = None
 
     def create_detected_item(self, rvec, tvec, t_class_name, box_id,
-                             db_key='food_item'):
+                             db_key='food_item', info_map=dict()):
         pose = quaternion_matrix(rvec)
         pose[:3, 3] = tvec
 
@@ -77,17 +84,20 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
             marker_id=box_id,
             db_key=db_key,
             pose=pose,
-            detected_time=rospy.Time.now())
+            detected_time=rospy.Time.now(),
+            info_map=info_map)
 
     # Inherited classes change this
     def get_skewering_pose(self, txmin, txmax, tymin, tymax, width, height,
-                           img_msg, t_class_name):
+                           img_msg, t_class_name, annotation):
         """
-        @return skewering position and angle in the image.
+        @return list of skewering position, angle,
+        and other information for each detected item in the image.
         """
-        return [0.5, 0.5], 0.0
+        return [[0.5, 0.5]], [0.0], [dict()]
 
-    def find_closest_box_and_update(self, x, y, class_name, tolerance=70):
+    def find_closest_box_and_update(self, x, y, class_name,
+        tolerance=70, angle=0.0, info=None):
         """
         Finds ths closest bounding box in the current list and
         updates it with the provided x, y
@@ -102,7 +112,14 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         matched_id = None
         largest_id = -1
         ids_to_delete = []
-        for bid, (bx, by) in self.detected_item_boxes[class_name].iteritems():
+
+        if class_name not in self.detected_item_boxes:
+            self.detected_item_boxes[class_name] = dict()
+
+        for bid in self.detected_item_boxes[class_name].keys():
+            item = self.detected_item_boxes[class_name][bid]
+            bx, by = item[0], item[1]
+
             distance = np.linalg.norm(np.array([x, y]) - np.array([bx, by]))
             largest_id = max(largest_id, bid)
             if distance >= tolerance:
@@ -121,9 +138,25 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 self.detected_item_boxes[class_name].pop(mid)
 
         if matched_id is not None:
-            self.detected_item_boxes[class_name][matched_id] = (x, y)
+            # Perform EMA
+            alpha = self.ema_alpha
+            old_data = self.detected_item_boxes[class_name][matched_id]
+            newx = alpha * x + (1.0 - alpha) * old_data[0]
+            newy = alpha * y + (1.0 - alpha) * old_data[1]
+
+            newa = alpha * angle + (1.0 - alpha) * old_data[2]
+            print(old_data, newx, newy, newa, alpha)
+            self.detected_item_boxes[class_name][matched_id] = (newx, newy, newa)
+            
+            if info is not None:
+                if 'rotation' in info:
+                    rotation = alpha * info['rotation'] + (1.0 - alpha) * old_data[3]
+                    self.detected_item_boxes[class_name][matched_id] = (newx, newy, newa, rotation)
         else:
-            self.detected_item_boxes[class_name][largest_id + 1] = (x, y)
+            self.detected_item_boxes[class_name][largest_id + 1] = (x, y, angle)
+            if info is not None:
+                if 'rotation' in info:
+                    self.detected_item_boxes[class_name][largest_id + 1] = (x, y, angle, info['rotation'])
             matched_id = largest_id + 1
             print("Adding a new box with id {} for {}".format(
                 matched_id, class_name))
@@ -143,15 +176,26 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         if depth is None or len(depth) == 0:
             return -1
         z0 = np.mean(depth)
+        if self.z is None:
+            self.z = z0
+        else:
+            z0 = self.ema_alpha * z0 + (1.0 - self.ema_alpha) * self.z
+            self.z = z0
         return z0 / 1000.0  # mm to m
+
+    # Entry point to initialize any annotation function with all boxes
+    def annotation_initialization(self, boxes):
+        pass
+
+    # Entry point to annotate individual boxes with arbitrary data
+    def annotate_box(self, box):
+        return None
 
     def detect_objects(self):
         if self.img_msg is None:
-            print('no input stream')
             return list()
 
         if self.depth_img_msg is None:
-            print('no input depth stream')
             self.depth_img_msg = np.ones(self.img_msg.shape[:2])
 
         copied_img_msg = self.img_msg.copy()
@@ -220,7 +264,15 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                     t_class_name = force_food_name
                     t_class = self.get_index_of_class_name(t_class_name)
 
-                if (t_class_name == self.selector_food_names[self.selector_index]):
+                #Overrides
+                #if t_class_name == "grape":
+                #    t_class_name = "strawberry"
+                #if t_class_name == "cherry_tomato":
+                #    t_class_name = "strawberry"
+                if t_class_name == "honeydew":
+                    t_class_name = "cantaloupe"
+
+                if (t_class_name == list(self.selector_food_names)[self.selector_index]):
                     txmin, tymin, txmax, tymax = \
                         boxes[box_idx].numpy() - bbox_offset
                     if (txmin < 0 or tymin < 0 or
@@ -240,6 +292,47 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
         chosen_labels = []
         chosen_scores = []
 
+        ### Begin Annotation Initialization
+        # Label all food items to initialize any annotation algorithm
+        boxes_labeled = []
+        for box_idx in range(len(boxes)):
+            box_labeled = {}
+
+            # Get Location
+            txmin, tymin, txmax, tymax = boxes[box_idx].numpy() - bbox_offset
+            if (txmin < 0 or tymin < 0 or txmax > width or tymax > height):
+                continue
+
+            uv=[float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0]
+            box_labeled['uv'] = uv
+
+            # Get Class Name
+            t_class = labels[box_idx].item()
+            if t_class == -1:
+                t_class_name = 'sample'
+            else:
+                t_class_name = self.label_map[t_class]
+            if force_food:
+                t_class_name = force_food_name
+
+            #Overrides
+            #if t_class_name == "grape":
+            #    t_class_name = "strawberry"
+            #if t_class_name == "cherry_tomato":
+            #    t_class_name = "strawberry"
+            if t_class_name == "honeydew":
+                t_class_name = "cantaloupe"
+
+            class_box_id = self.find_closest_box_and_update(
+                        (txmin + txmax) / 2.0, (tymin + tymax) / 2.0,
+                        t_class_name)
+
+            box_labeled['id'] = class_box_id
+
+            boxes_labeled.append(box_labeled)
+        self.annotation_initialization(boxes_labeled)
+        ### End Annotation Initialization
+
         for box_idx in range(len(boxes)):
             t_class = labels[box_idx].item()
             if t_class == -1:
@@ -250,64 +343,108 @@ class RetinaNetDetector(PoseEstimator, CameraSubscriber, ImagePublisher):
                 t_class_name = force_food_name
                 t_class = self.get_index_of_class_name(t_class_name)
 
+            #Overrides
+            #if t_class_name == "grape":
+            #    t_class_name = "strawberry"
+            #if t_class_name == "cherry_tomato":
+            #    t_class_name = "strawberry"
+            if t_class_name == "honeydew":
+                t_class_name = "cantaloupe"
+
+          #  if t_class_name != 'strawberry':
+          #      continue
+            print(t_class_name)
+
             txmin, tymin, txmax, tymax = boxes[box_idx].numpy() - bbox_offset
             if (txmin < 0 or tymin < 0 or txmax > width or tymax > height):
                 continue
 
-            skewer_xy, skewer_angle = self.get_skewering_pose(
-                    txmin, txmax, tymin, tymax, width, height,
-                    copied_img_msg, t_class_name)
+            ### Begin Annotation
+            box_labeled = {}
+            box_labeled['id'] = self.find_closest_box_and_update(
+                        (txmin + txmax) / 2.0, (tymin + tymax) / 2.0,
+                        t_class_name)
+            box_labeled['uv'] = [float(txmin + txmax) / 2.0, float(tymin + tymax) / 2.0]
+            annotation = self.annotate_box(box_labeled)
+            ### End Annotation
 
-            if not skewer_xy:
+            skewer_xys, skewer_angles, skewer_infos = self.get_skewering_pose(
+                    txmin, txmax, tymin, tymax, width, height,
+                    copied_img_msg, t_class_name, annotation)
+
+            if len(skewer_xys) == 0:
                 self.visualize_detections(img, [], [], [], bbox_offset)
                 continue
 
-            class_box_id = self.find_closest_box_and_update(
-                    (txmin + txmax) / 2.0, (tymin + tymax) / 2.0, t_class_name)
+            for skewer_xy, skewer_angle, skewer_info in zip(skewer_xys, skewer_angles, skewer_infos):
 
-            cropped_depth = depth_img[
-                int(max(tymin, 0)):int(min(tymax, height)),
-                int(max(txmin, 0)):int(min(txmax, width))]
-            z0 = self.calculate_depth(cropped_depth)
-            if z0 < 0:
-                # Skipping due to invalid z0
-                continue
+                if "action" in skewer_info:
+                    t_class_name_current = t_class_name + "+" + skewer_info["action"]
+                else:
+                    t_class_name_current = t_class_name
 
-            if spBoxIdx >= 0:
-                this_pos = skewer_xy
-                this_ang = skewer_angle
-
-                txoff = (txmax - txmin) * this_pos[0]
-                tyoff = (tymax - tymin) * this_pos[1]
+                txoff = (txmax - txmin) * skewer_xy[0]
+                tyoff = (tymax - tymin) * skewer_xy[1]
                 pt = [txmin + txoff, tymin + tyoff]
 
-                coff = 60
+                class_box_id = self.find_closest_box_and_update(
+                        pt[0], pt[1],
+                        t_class_name_current,
+                        angle=skewer_angle,
+                        info=skewer_info)
+                
+                tup = self.detected_item_boxes[t_class_name_current][class_box_id]
+                if len(tup) > 3:
+                    pt[0], pt[1], this_ang, skewer_info['rotation'] = tup
+                else:
+                    pt[0], pt[1], this_ang = tup
+
                 cropped_depth = depth_img[
-                    int(pt[1] - coff):int(pt[1] + coff),
-                    int(pt[0] - coff):int(pt[1] + coff)]
-                current_z0 = self.calculate_depth(cropped_depth)
-                if (current_z0 < 0):
-                    current_z0 = z0
+                    int(max(tymin, 0)):int(min(tymax, height)),
+                    int(max(txmin, 0)):int(min(txmax, width))]
+                z0 = self.calculate_depth(cropped_depth)
+                if z0 < 0:
+                    # Skipping due to invalid z0
+                    continue
 
-                x, y, z, w = quaternion_from_euler(
-                    this_ang + 90, 0., 0.)
-                rvec = np.array([x, y, z, w])
+                if spBoxIdx >= 0:
+                    # this_pos = skewer_xy
+                    this_ang = skewer_angle
 
-                tz = current_z0
-                tx = (tz / cam_fx) * (pt[0] - cam_cx)
-                ty = (tz / cam_fy) * (pt[1] - cam_cy)
-                tvec = np.array([tx, ty, tz])
+                    # txoff = (txmax - txmin) * this_pos[0]
+                    # tyoff = (tymax - tymin) * this_pos[1]
+                    # pt = [txmin + txoff, tymin + tyoff]
 
-                detections.append(self.create_detected_item(
-                    rvec, tvec, t_class_name, class_box_id))
+                    coff = 60
+                    cropped_depth = depth_img[
+                        int(pt[1] - coff):int(pt[1] + coff),
+                        int(pt[0] - coff):int(pt[1] + coff)]
+                    current_z0 = self.calculate_depth(cropped_depth)
+                    if (current_z0 < 0):
+                        current_z0 = z0
+                    print("current_z0", current_z0)
+                    x, y, z, w = quaternion_from_euler(
+                        0, 0., np.deg2rad(this_ang))
+                    rvec = np.array([x, y, z, w])
+                    print("Retinanet", rvec)
 
-                chosen_boxes.append(boxes[box_idx])
-                chosen_labels.append(
-                    "{}_{}".format(t_class_name, class_box_id))
-                chosen_scores.append(scores[box_idx])
+                    tz = current_z0
+                    tx = (tz / cam_fx) * (pt[0] - cam_cx)
+                    ty = (tz / cam_fy) * (pt[1] - cam_cy)
+                    tvec = np.array([tx, ty, tz])
+
+                    # NOTE: modified to t_class_name
+                    detections.append(self.create_detected_item(
+                        rvec, tvec, t_class_name, class_box_id, info_map=skewer_info))
+
+                    chosen_boxes.append(boxes[box_idx])
+                    chosen_labels.append(
+                        "{}_{}".format(t_class_name, class_box_id))
+                    chosen_scores.append(scores[box_idx])
 
         self.visualize_detections(
             img, chosen_boxes, chosen_scores, chosen_labels, bbox_offset)
+
         return detections
 
     def visualize_detections(self, img, boxes, scores, labels, bbox_offset):

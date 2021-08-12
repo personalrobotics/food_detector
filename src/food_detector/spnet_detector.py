@@ -3,6 +3,7 @@
 from __future__ import print_function
 from __future__ import division
 from __future__ import with_statement
+from __future__ import absolute_import
 
 import numpy as np
 import os
@@ -19,7 +20,8 @@ from PIL import ImageDraw
 import torch
 import torchvision.transforms as transforms
 
-import ada_feeding_demo_config as conf
+
+from . import ada_feeding_demo_config as conf
 
 rospack = rospkg.RosPack()
 pkg_base = rospack.get_path('food_detector')
@@ -30,7 +32,7 @@ sys.path.append(external_path)
 from bite_selection_package.model.spnet import SPNet, DenseSPNet
 from bite_selection_package.config import spnet_config
 
-from retinanet_detector import RetinaNetDetector
+from .retinanet_detector import RetinaNetDetector
 
 
 # A pose estimator for detecting object and skewering pose
@@ -227,7 +229,8 @@ class SPNetDetector(RetinaNetDetector):
             self, txmin, txmax, tymin, tymax, width,
             height, img_msg, t_class_name):
         """
-        @return skewering position and angle in the image.
+        @return list of skewering position, angle,
+        and other information for each detected item in the image.
         """
         """
         Temporarily Disable for Demo
@@ -235,7 +238,8 @@ class SPNetDetector(RetinaNetDetector):
                               int(max(txmin, 0)):int(min(txmax, width))]
 
         sp_pose, sp_angle = self.publish_spnet(cropped_img, t_class_name, True)
-        return sp_pose, sp_angle
+
+        return [sp_pose], [sp_angle], [dict()]
         """
 
-        return [0.5, 0.5], 0.0
+        return [0.5, 0.5], 0.0, [dict()]
