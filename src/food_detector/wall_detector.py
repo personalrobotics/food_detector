@@ -118,6 +118,8 @@ class WallDetector:
         """
 
         # Detect Largest Circle (Plate)
+        # raida-- get plate locaton (center and radius) using houghcircles which finds circles in a grayscale image using the Hough transform
+        # from open cv package
         circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, self._hough_accum, self._hough_min_dist,
             param1=self._hough_param1, param2=self._hough_param2, minRadius=self._hough_min, maxRadius=self._hough_max)
         if circles is None:
@@ -181,6 +183,22 @@ class WallDetector:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
+        # raida-- here to get the diameter, we can compute and return plate_r * 2 = plate_d
+        # if we add plate_d as a parameter to return from this function, we can then perhaps save it in  a variable
+        # with that saved variable, say d, we can say while(current_plate_len != d), keep the arm move the plate 
+        # to bring the full plate into the camera view
+
+        # perhaps we need a new code file like ada_visual_servoing.py that can call wall_detector._fit_table function and
+        # have other information like  arm movement and plate holding commands relative to the table
+
+        # question:how to connect the new file to a runnable file on the robot, so all these hypothetical 
+        # codes can be evaluated if works or not?
+
+        # comment: I think this file' code(when/if the above mentioned code is written) fulfils the task of detecting plate length 
+        # in camera view suitable from partial to entirety. So, answers my Q1 and Q2 from the milestone #1 doc. The remaining has
+        # to do with moving the arm holding the plate, and creatng a file for these functionalities without harming this original file
+
+        #question: is my intuition going in the right direction?
         return plate_uv, plate_r, height
 
     def _segment(self, img, uv):
