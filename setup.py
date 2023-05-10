@@ -15,6 +15,7 @@ d = generate_distutils_setup(
         'pose_estimators',
         'pytorch_retinanet',
         'bite_selection_package',
+        'maskrcnn'
     ]
 )
 setup(**d)

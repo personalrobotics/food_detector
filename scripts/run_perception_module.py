@@ -13,13 +13,15 @@ from food_detector.spnet_detector import SPNetDetector
 from food_detector.retinanet_detector import RetinaNetDetector
 from food_detector.spanet_detector import SPANetDetector
 
+from food_detector.maskrcnn_detector import MaskRCNNDetector
+
 import food_detector.ada_feeding_demo_config as conf
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         "Run perception module for ada feeding projects")
     parser.add_argument(
-        "--demo-type", choices=['spnet', 'spanet', 'retinanet'],
+        "--demo-type", choices=['spnet', 'spanet', 'retinanet', 'maskrcnn'],
         required=True)
     args = parser.parse_args(rospy.myargv()[1:])
     rospy.init_node('food_detector')
@@ -32,6 +34,8 @@ if __name__ == '__main__':
         pose_estimator = SPNetDetector(use_cuda=conf.use_cuda, node_name=rospy.get_name())
     elif args.demo_type == "spanet":
         pose_estimator = SPANetDetector(use_cuda=conf.use_cuda)
+    elif args.demo_type == "maskrcnn":
+        pose_estimator = MaskRCNNDetector(use_cuda=conf.use_cuda)
     else:
         raise ValueError("Unknown demo type")
 
@@ -45,12 +49,25 @@ if __name__ == '__main__':
         color=[0.5, 1.0, 0.5, 0.1],
         count_items=False)  # spnet and spanet handles this internally
 
-    perception_module = PerceptionModule(
-        pose_estimator=pose_estimator,
-        marker_manager=marker_manager,
-        detection_frame_marker_topic=None,
-        detection_frame=conf.camera_tf,
-        destination_frame=conf.destination_frame,
-        purge_all_markers_per_update=True)
+    if args.demo_type != "maskrcnn":
+        perception_module = PerceptionModule(
+            pose_estimator=pose_estimator,
+            marker_manager=marker_manager,
+            detection_frame_marker_topic=None,
+            detection_frame=conf.camera_tf,
+            destination_frame=conf.destination_frame,
+            purge_all_markers_per_update=True)
 
-    run_detection(rospy.get_name(), conf.frequency, perception_module)
+        run_detection(rospy.get_name(), conf.frequency, perception_module)
+    else:
+        perception_module = PerceptionModule(
+            pose_estimator=pose_estimator,
+            marker_manager=marker_manager,
+            detection_frame_marker_topic=None,
+            detection_frame=conf.maskrcnn_camera_tf,
+            destination_frame=conf.maskrcnn_destination_frame,
+            purge_all_markers_per_update=True,
+            timeout=10
+        )
+        run_detection(rospy.get_name(), conf.maskrcnn_frequency, perception_module)
+

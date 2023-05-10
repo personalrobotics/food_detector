@@ -2,7 +2,12 @@ import torch
 import os
 from pytorch_retinanet.model.retinanet import RetinaNet
 from pytorch_retinanet.utils.encoder import DataEncoder
+from torchvision.models.detection import maskrcnn_resnet50_fpn
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import torchvision.transforms as transforms
+import json
+
+from maskrcnn.model import load_model
 
 
 def load_retinanet(use_cuda, checkpoint):
@@ -26,6 +31,16 @@ def load_retinanet(use_cuda, checkpoint):
 
     return retinanet, retinanet_transform, encoder
 
+def load_maskrcnn(use_cuda, checkpoint):
+    maskrcnn = load_model(checkpoint, use_cuda=use_cuda)
+    maskrcnn.eval()
+    if use_cuda:
+        maskrcnn = maskrcnn.cuda()
+
+    print('Loaded MaskRCNN from ' + checkpoint)
+
+    return maskrcnn 
+
 
 def load_label_map(label_map):
     with open(os.path.expanduser(label_map), 'r') as f:
@@ -48,3 +63,10 @@ def load_label_map(label_map):
         label_dict[item_id] = item_name
 
     return label_dict
+
+def load_maskrcnn_label_map(label_map):
+    with open(os.path.expanduser(label_map), 'r') as f:
+        label_map = json.load(f)
+    
+    label_map = {int(k):v for k,v in label_map.items()}
+    return label_map

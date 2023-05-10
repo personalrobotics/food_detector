@@ -39,3 +39,22 @@ frequency = 20
 
 # Used for wall detector
 destination_frame = 'map'
+
+
+# MAKSRCNN CONFIG
+maskrcnn_base = rospack.get_path('maskrcnn')
+maskrcnn_num_classes = 34
+maskrcnn_checkpoint = os.path.join(maskrcnn_base, 'src/maskrcnn/best_train_model.pth')
+maskrcnn_label_map = os.path.join(maskrcnn_base, 'data/json/id_to_food_mapping.json')
+
+maskrcnn_image_topic = '/camera_1/color/image_raw'
+maskrcnn_msg_type = 'raw'
+maskrcnn_depth_image_topic = '/camera_1/aligned_depth_to_color/image_raw'
+maskrcnn_depth_msg_type = 'raw'
+
+maskrcnn_camera_tf = 'camera_color_optical_frame'
+maskrcnn_camera_info_topic = '/camera_1/color/camera_info'
+
+maskrcnn_destination_frame = 'map'    # possibly change??
+maskrcnn_frequency = 15
+maskrcnn_thresh = 0.4
